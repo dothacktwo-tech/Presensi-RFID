@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../../services/storage';
 import { User, UserRole, StudentClass } from '../../types';
-import { UserCog, Plus, Shield, Trash2, Edit, X } from 'lucide-react';
+import { UserCog, Plus, Trash2, Edit, X } from 'lucide-react';
 
 interface UserManagementProps {
   onNotify: (type: 'success' | 'error', title: string, message?: string) => void;
@@ -86,30 +86,30 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNotify }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+          <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200">
             <UserCog className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Manajemen Pengguna & Role (RBAC)</h2>
-            <p className="text-xs text-slate-400">Pengaturan Hak Akses Admin, Guru Piket, dan Wali Kelas</p>
+            <h2 className="text-lg font-bold text-slate-900">Manajemen Pengguna & Role (RBAC)</h2>
+            <p className="text-xs text-slate-500">Pengaturan Hak Akses Admin, Guru Piket, dan Wali Kelas</p>
           </div>
         </div>
 
         <button
           onClick={handleOpenAdd}
-          className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all shadow-md"
+          className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
           <span>Tambah Pengguna Baru</span>
         </button>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
         <table className="w-full text-left text-xs">
           <thead>
-            <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-semibold">
+            <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
               <th className="py-3 px-4">Nama User</th>
               <th className="py-3 px-4">Username / Email</th>
               <th className="py-3 px-4">Role Akses</th>
@@ -117,55 +117,55 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNotify }) => {
               <th className="py-3 px-4 text-right">Aksi</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60 font-medium">
+          <tbody className="divide-y divide-slate-200 font-medium">
             {users.map((u) => (
-              <tr key={u.id} className="hover:bg-slate-800/40">
-                <td className="py-3 px-4 font-bold text-white">
+              <tr key={u.id} className="hover:bg-slate-50">
+                <td className="py-3 px-4 font-bold text-slate-900">
                   <div>{u.name}</div>
-                  {u.nip && <div className="text-[10px] font-mono text-slate-500">NIP: {u.nip}</div>}
+                  {u.nip && <div className="text-[10px] font-mono text-slate-400 font-normal">NIP: {u.nip}</div>}
                 </td>
-                <td className="py-3 px-4 font-mono text-indigo-300">
+                <td className="py-3 px-4 font-mono text-indigo-700 font-bold">
                   <div>@{u.username}</div>
-                  <div className="text-[10px] text-slate-500">{u.email}</div>
+                  <div className="text-[10px] text-slate-400 font-normal">{u.email}</div>
                 </td>
                 <td className="py-3 px-4">
                   {u.role === 'admin' && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
                       ADMIN
                     </span>
                   )}
                   {u.role === 'guru_piket' && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                       GURU PIKET
                     </span>
                   )}
                   {u.role === 'wali_kelas' && (
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                       WALI KELAS
                     </span>
                   )}
                 </td>
-                <td className="py-3 px-4 text-slate-300">
+                <td className="py-3 px-4 text-slate-700">
                   {u.assignedClassName ? (
-                    <span className="px-2 py-0.5 rounded bg-slate-800 border border-slate-700">
+                    <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 font-bold">
                       {u.assignedClassName}
                     </span>
                   ) : (
-                    <span className="text-slate-500 italic">Semua / Full</span>
+                    <span className="text-slate-400 italic">Semua / Full</span>
                   )}
                 </td>
                 <td className="py-3 px-4 text-right">
                   <div className="flex items-center justify-end gap-1">
                     <button
                       onClick={() => handleOpenEdit(u)}
-                      className="p-1.5 hover:bg-slate-800 text-slate-300 rounded-lg"
+                      className="p-1.5 hover:bg-slate-100 text-slate-600 rounded-lg"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     {u.username !== 'admin' && (
                       <button
                         onClick={() => handleDelete(u.id, u.name)}
-                        className="p-1.5 hover:bg-rose-950 text-rose-400 rounded-lg"
+                        className="p-1.5 hover:bg-rose-50 text-rose-600 rounded-lg"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -179,49 +179,49 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNotify }) => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-scale-up">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-4">
-              <h3 className="text-base font-bold text-white">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl animate-scale-up">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-4">
+              <h3 className="text-base font-bold text-slate-900">
                 {activeUser ? 'Edit User' : 'Tambah User RBAC'}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-700">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Nama Lengkap & Gelar</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Nama Lengkap & Gelar</label>
                 <input
                   type="text"
                   required
                   value={formData.name || ''}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Contoh: Ahmad Fauzi, S.Pd."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 focus:border-indigo-600"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Username Login</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Username Login</label>
                   <input
                     type="text"
                     required
                     value={formData.username || ''}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                     placeholder="fauzi"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:border-indigo-600"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Role RBAC</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Role RBAC</label>
                   <select
                     value={formData.role}
                     onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                    className="w-full bg-slate-950 border border-slate-700 text-xs text-white rounded-xl px-3 py-2"
+                    className="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-xl px-3 py-2"
                   >
                     <option value="admin">Admin Full</option>
                     <option value="guru_piket">Guru Piket</option>
@@ -232,11 +232,11 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNotify }) => {
 
               {formData.role === 'wali_kelas' && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Wali Kelas Untuk</label>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">Wali Kelas Untuk</label>
                   <select
                     value={formData.assignedClassId || ''}
                     onChange={(e) => setFormData({ ...formData, assignedClassId: e.target.value })}
-                    className="w-full bg-slate-950 border border-slate-700 text-xs text-white rounded-xl px-3 py-2"
+                    className="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-xl px-3 py-2"
                   >
                     <option value="">-- Pilih Kelas --</option>
                     {classes.map(c => (
@@ -247,27 +247,27 @@ export const UserManagement: React.FC<UserManagementProps> = ({ onNotify }) => {
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">NIP (Opsional)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">NIP (Opsional)</label>
                 <input
                   type="text"
                   value={formData.nip || ''}
                   onChange={(e) => setFormData({ ...formData, nip: e.target.value })}
                   placeholder="19xxxxxxxxxxxxxx"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 font-mono focus:border-indigo-600"
                 />
               </div>
 
-              <div className="pt-3 flex justify-end gap-2 border-t border-slate-800">
+              <div className="pt-3 flex justify-end gap-2 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-xl text-xs font-semibold"
+                  className="px-4 py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-xl text-xs font-semibold"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold"
                 >
                   Simpan User
                 </button>

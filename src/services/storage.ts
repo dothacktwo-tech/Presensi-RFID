@@ -303,7 +303,7 @@ export class StorageService {
         className: targetClass ? targetClass.name : (raw.className || 'Umum'),
         rfidUid: raw.rfidUid ? String(raw.rfidUid).trim() : `RFID-${raw.nis}`,
         qrCode: raw.qrCode ? String(raw.qrCode).trim() : `SMAN1L-${raw.nis}`,
-        gender: (raw.gender === 'P' || raw.gender === 'Perempuan') ? 'P' : 'L',
+        gender: (String(raw.gender).toUpperCase() === 'P' || String(raw.gender).toLowerCase() === 'perempuan') ? 'P' : 'L',
         parentPhone: raw.parentPhone ? String(raw.parentPhone).trim() : '',
         address: raw.address ? String(raw.address).trim() : '',
         status: 'aktif',
@@ -494,5 +494,29 @@ export class StorageService {
   static deleteUser(id: string): void {
     const users = this.getUsers().filter(u => u.id !== id);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+  }
+
+  // --- LOCKED DATES & BATCH PERMISSION ---
+  static getLockedDates(): string[] {
+    const data = localStorage.getItem('sman1_lumbung_locked_dates');
+    return data ? JSON.parse(data) : [];
+  }
+
+  static isDateLocked(date: string): boolean {
+    const locked = this.getLockedDates();
+    return locked.includes(date);
+  }
+
+  static lockDate(date: string): void {
+    const locked = this.getLockedDates();
+    if (!locked.includes(date)) {
+      locked.push(date);
+      localStorage.setItem('sman1_lumbung_locked_dates', JSON.stringify(locked));
+    }
+  }
+
+  static unlockDate(date: string): void {
+    const locked = this.getLockedDates().filter(d => d !== date);
+    localStorage.setItem('sman1_lumbung_locked_dates', JSON.stringify(locked));
   }
 }

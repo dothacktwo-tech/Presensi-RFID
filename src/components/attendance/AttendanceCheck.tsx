@@ -7,13 +7,11 @@ import {
   UserCheck,
   Search,
   Filter,
-  Calendar,
   CheckCircle2,
   Clock,
   AlertTriangle,
   XCircle,
-  PlusCircle,
-  FileSpreadsheet
+  PlusCircle
 } from 'lucide-react';
 
 interface AttendanceCheckProps {
@@ -46,7 +44,6 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
     setAttendances(StorageService.getAttendances());
   };
 
-  // Date range calculation
   const getMinDate = () => {
     const d = new Date();
     if (datePeriod === 'today') {
@@ -94,14 +91,14 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
   return (
     <div className="space-y-6">
       {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="p-3 rounded-xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30">
+          <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200">
             <UserCheck className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-white">Absensi Kehadiran Siswa</h2>
-            <p className="text-xs text-slate-400">
+            <h2 className="text-lg font-bold text-slate-900">Absensi Kehadiran Siswa</h2>
+            <p className="text-xs text-slate-500">
               Pengecekan daftar dan status kehadiran siswa (Hadir, Terlambat, Sakit, Izin, Alpa)
             </p>
           </div>
@@ -109,7 +106,7 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
 
         <button
           onClick={onOpenManualInput}
-          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-indigo-900/30 transition-all"
+          className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
         >
           <PlusCircle className="w-4 h-4" />
           <span>Sub-Menu: Absensi Manual</span>
@@ -122,108 +119,107 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
           onClick={() => setSelectedStatus('HADIR')}
           className={`p-3 rounded-xl border text-left transition-all ${
             selectedStatus === 'HADIR'
-              ? 'bg-emerald-950/80 border-emerald-500 text-emerald-100 shadow-md'
-              : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+              ? 'bg-emerald-50 border-emerald-300 text-emerald-900 shadow-sm font-bold'
+              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">Hadir</span>
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">Hadir</span>
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-xl font-mono font-bold mt-1 text-white">{hadirCount}</p>
+          <p className="text-xl font-mono font-bold mt-1 text-slate-900">{hadirCount}</p>
         </button>
 
         <button
           onClick={() => setSelectedStatus('TERLAMBAT')}
           className={`p-3 rounded-xl border text-left transition-all ${
             selectedStatus === 'TERLAMBAT'
-              ? 'bg-amber-950/80 border-amber-500 text-amber-100 shadow-md'
-              : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+              ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-sm font-bold'
+              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">Terlambat</span>
-            <Clock className="w-4 h-4 text-amber-400" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">Terlambat</span>
+            <Clock className="w-4 h-4 text-amber-600" />
           </div>
-          <p className="text-xl font-mono font-bold mt-1 text-white">{terlambatCount}</p>
+          <p className="text-xl font-mono font-bold mt-1 text-slate-900">{terlambatCount}</p>
         </button>
 
         <button
           onClick={() => setSelectedStatus('SAKIT')}
           className={`p-3 rounded-xl border text-left transition-all ${
             selectedStatus === 'SAKIT'
-              ? 'bg-sky-950/80 border-sky-500 text-sky-100 shadow-md'
-              : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+              ? 'bg-sky-50 border-sky-300 text-sky-900 shadow-sm font-bold'
+              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400">Sakit</span>
-            <AlertTriangle className="w-4 h-4 text-sky-400" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-700">Sakit</span>
+            <AlertTriangle className="w-4 h-4 text-sky-600" />
           </div>
-          <p className="text-xl font-mono font-bold mt-1 text-white">{sakitCount}</p>
+          <p className="text-xl font-mono font-bold mt-1 text-slate-900">{sakitCount}</p>
         </button>
 
         <button
           onClick={() => setSelectedStatus('IZIN')}
           className={`p-3 rounded-xl border text-left transition-all ${
             selectedStatus === 'IZIN'
-              ? 'bg-indigo-950/80 border-indigo-500 text-indigo-100 shadow-md'
-              : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+              ? 'bg-indigo-50 border-indigo-300 text-indigo-900 shadow-sm font-bold'
+              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">Izin</span>
-            <AlertTriangle className="w-4 h-4 text-indigo-400" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">Izin</span>
+            <AlertTriangle className="w-4 h-4 text-indigo-600" />
           </div>
-          <p className="text-xl font-mono font-bold mt-1 text-white">{izinCount}</p>
+          <p className="text-xl font-mono font-bold mt-1 text-slate-900">{izinCount}</p>
         </button>
 
         <button
           onClick={() => setSelectedStatus('ALPA')}
           className={`p-3 rounded-xl border text-left transition-all ${
             selectedStatus === 'ALPA'
-              ? 'bg-rose-950/80 border-rose-500 text-rose-100 shadow-md'
-              : 'bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700'
+              ? 'bg-rose-50 border-rose-300 text-rose-900 shadow-sm font-bold'
+              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-400">Alpa</span>
-            <XCircle className="w-4 h-4 text-rose-400" />
+            <span className="text-[10px] font-bold uppercase tracking-wider text-rose-700">Alpa</span>
+            <XCircle className="w-4 h-4 text-rose-600" />
           </div>
-          <p className="text-xl font-mono font-bold mt-1 text-white">{alpaCount}</p>
+          <p className="text-xl font-mono font-bold mt-1 text-slate-900">{alpaCount}</p>
         </button>
       </div>
 
       {/* Filter Options Controls */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2 text-xs font-bold text-indigo-300">
-            <Filter className="w-4 h-4" />
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-3">
+          <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+            <Filter className="w-4 h-4 text-indigo-600" />
             <span>Filter Presensi</span>
           </div>
 
-          {/* Quick Period Toggles (Hari Ini, 1 Minggu, 1 Bulan) */}
-          <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
             <button
               onClick={() => setDatePeriod('today')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                datePeriod === 'today' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                datePeriod === 'today' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               Hari Ini
             </button>
             <button
               onClick={() => setDatePeriod('week')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                datePeriod === 'week' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                datePeriod === 'week' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               1 Minggu Terakhir
             </button>
             <button
               onClick={() => setDatePeriod('month')}
-              className={`px-3 py-1 rounded-lg font-medium transition-all ${
-                datePeriod === 'month' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-400 hover:text-white'
+              className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                datePeriod === 'month' ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               1 Bulan Ini
@@ -234,19 +230,19 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Class Selector */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Filter Kelas</label>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Filter Kelas</label>
             {isWaliKelas && currentUser?.assignedClassId ? (
               <input
                 type="text"
                 disabled
                 value={currentUser.assignedClassName || 'Kelas Wali'}
-                className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-indigo-300 font-bold"
+                className="w-full bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-xs text-indigo-700 font-bold"
               />
             ) : (
               <select
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-700 text-xs text-white rounded-xl px-3 py-2"
+                className="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-xl px-3 py-2 focus:border-indigo-600"
               >
                 <option value="ALL">Semua Kelas</option>
                 {classes.map((c) => (
@@ -258,11 +254,11 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
 
           {/* Status Filter Dropdown */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Filter Status Presensi</label>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Filter Status Presensi</label>
             <select
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-700 text-xs text-white rounded-xl px-3 py-2"
+              className="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-xl px-3 py-2 focus:border-indigo-600"
             >
               <option value="ALL">Semua Status (Hadir/Terlambat/Sakit/Izin/Alpa)</option>
               <option value="HADIR">HADIR</option>
@@ -275,31 +271,31 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
 
           {/* Search Input */}
           <div>
-            <label className="block text-[11px] font-semibold text-slate-400 mb-1">Cari Siswa</label>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Cari Siswa</label>
             <div className="relative">
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Nama Siswa atau NIS..."
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500"
+                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-600"
               />
-              <Search className="w-3.5 h-3.5 text-slate-500 absolute right-3 top-2.5" />
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Attendance List Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-slate-800 flex items-center justify-between text-xs">
-          <span className="font-bold text-white">
-            Data Ditemukan: <strong className="text-indigo-400 font-mono">{filteredRecords.length} Siswa</strong>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="p-4 border-b border-slate-200 flex items-center justify-between text-xs">
+          <span className="font-bold text-slate-900">
+            Data Ditemukan: <strong className="text-indigo-600 font-mono">{filteredRecords.length} Siswa</strong>
           </span>
           {selectedStatus !== 'ALL' && (
             <button
               onClick={() => setSelectedStatus('ALL')}
-              className="text-xs text-indigo-400 hover:underline"
+              className="text-xs text-indigo-600 hover:underline font-bold"
             >
               Tampilkan Semua Status
             </button>
@@ -309,7 +305,7 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase text-[10px] tracking-wider font-semibold">
+              <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase text-[10px] tracking-wider font-bold">
                 <th className="py-3 px-4">No</th>
                 <th className="py-3 px-4">NIS</th>
                 <th className="py-3 px-4">Nama Siswa</th>
@@ -322,55 +318,55 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
                 <th className="py-3 px-4 text-right">Aksi Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 font-medium">
+            <tbody className="divide-y divide-slate-200 font-medium">
               {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-slate-500">
+                  <td colSpan={10} className="py-8 text-center text-slate-400">
                     Tidak ada data absensi yang sesuai filter.
                   </td>
                 </tr>
               ) : (
                 filteredRecords.map((r, idx) => (
-                  <tr key={r.id} className="hover:bg-slate-800/40">
-                    <td className="py-3 px-4 text-slate-500">{idx + 1}</td>
-                    <td className="py-3 px-4 font-mono text-indigo-300">{r.nis}</td>
-                    <td className="py-3 px-4 font-bold text-white">{r.studentName}</td>
-                    <td className="py-3 px-4 text-slate-300">{r.className}</td>
-                    <td className="py-3 px-4 font-mono text-slate-300">{r.date}</td>
-                    <td className="py-3 px-4 font-mono text-indigo-300">{r.time}</td>
+                  <tr key={r.id} className="hover:bg-slate-50">
+                    <td className="py-3 px-4 text-slate-400">{idx + 1}</td>
+                    <td className="py-3 px-4 font-mono text-indigo-700 font-bold">{r.nis}</td>
+                    <td className="py-3 px-4 font-bold text-slate-900">{r.studentName}</td>
+                    <td className="py-3 px-4 text-slate-700">{r.className}</td>
+                    <td className="py-3 px-4 font-mono text-slate-600">{r.date}</td>
+                    <td className="py-3 px-4 font-mono text-indigo-700 font-bold">{r.time}</td>
                     <td className="py-3 px-4">
                       {r.status === 'HADIR' && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           HADIR
                         </span>
                       )}
                       {r.status === 'TERLAMBAT' && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                           TERLAMBAT
                         </span>
                       )}
                       {(r.status === 'SAKIT' || r.status === 'IZIN') && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
                           {r.status}
                         </span>
                       )}
                       {r.status === 'ALPA' && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                           ALPA
                         </span>
                       )}
                     </td>
-                    <td className="py-3 px-4 font-mono text-amber-300 font-bold">
+                    <td className="py-3 px-4 font-mono text-amber-700 font-bold">
                       {r.status === 'TERLAMBAT' && r.lateMinutes ? `${r.lateMinutes} menit` : '-'}
                     </td>
-                    <td className="py-3 px-4 text-slate-400 text-[11px] truncate max-w-[150px]">
+                    <td className="py-3 px-4 text-slate-500 text-[11px] truncate max-w-[150px]">
                       {r.notes || '-'}
                     </td>
                     <td className="py-3 px-4 text-right">
                       <select
                         value={r.status}
                         onChange={(e) => handleStatusChange(r.id, e.target.value as AttendanceStatus)}
-                        className="bg-slate-950 border border-slate-700 text-[11px] text-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                        className="bg-white border border-slate-300 text-[11px] text-slate-800 rounded-lg px-2 py-1 focus:border-indigo-600 cursor-pointer"
                       >
                         <option value="HADIR">HADIR</option>
                         <option value="TERLAMBAT">TERLAMBAT</option>
