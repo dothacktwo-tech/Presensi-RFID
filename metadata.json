@@ -1,0 +1,6 @@
+{
+  "name": "Sistem Absensi Siswa SMAN 1 Lumbung",
+  "description": "Aplikasi presensi siswa berbasis RFID & QR Code dengan RBAC (Admin, Guru Piket, Wali Kelas), Kiosk Mode, Laporan PDF/Excel untuk SMAN 1 Lumbung.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
