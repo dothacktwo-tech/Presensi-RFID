@@ -3,8 +3,12 @@ import {
   testSupabaseConnection,
   checkAllTablesStatus,
   autoCreateAndSyncTables,
+  pullFromSupabase,
   SUPABASE_SQL_SCRIPT,
-  TableCheckResult
+  TableCheckResult,
+  runStateAndDatabaseDiagnostic,
+  purgeGhostRecords,
+  DiagnosticReport
 } from '../../services/supabase';
 import {
   Database,
@@ -18,7 +22,14 @@ import {
   ShieldCheck,
   Layers,
   Sparkles,
-  Zap
+  Zap,
+  DownloadCloud,
+  UploadCloud,
+  Loader2,
+  Search,
+  Trash2,
+  AlertTriangle,
+  FileSearch
 } from 'lucide-react';
 
 interface SupabaseSettingsProps {
@@ -30,7 +41,16 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
   const [statusMessage, setStatusMessage] = useState('Sedang mengecek koneksi ke Supabase...');
   const [tables, setTables] = useState<TableCheckResult[]>([]);
   const [copied, setCopied] = useState(false);
+
+  // Sync Progress State
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isPulling, setIsPulling] = useState(false);
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [progressMsg, setProgressMsg] = useState('');
+
+  // Diagnostic Utility State
+  const [diagnosticReport, setDiagnosticReport] = useState<DiagnosticReport | null>(null);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xvhejxzczpbzmpkrbkkn.supabase.co';
   const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_z9QI0j-xF_SQCt0W5EIHWA_AWrWlCoi';
@@ -59,16 +79,32 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
   const handleCopySql = () => {
     navigator.clipboard.writeText(SUPABASE_SQL_SCRIPT);
     setCopied(true);
-    onNotify('success', 'Skrip SQL Disalin', 'Skrip DDL SQL untuk 5 tabel berhasil disalin ke clipboard.');
+    onNotify('success', 'Skrip SQL Disalin', 'Skrip DDL SQL untuk 8 tabel berhasil disalin ke clipboard.');
     setTimeout(() => setCopied(false), 3000);
   };
 
   const handleAutoCreateAndSync = async () => {
     setIsProcessing(true);
+    setProgressPercent(10);
+    setProgressMsg('Mempersiapkan transaksi sinkronisasi...');
     onNotify('info', 'Otomatisasi Tabel', 'Proses pembuatan & sinkronisasi data ke Supabase sedang berlangsung...');
 
+    await new Promise(r => setTimeout(r, 400));
+    setProgressPercent(35);
+    setProgressMsg('Memformat 8 tabel utama & transaksi lokal...');
+
+    await new Promise(r => setTimeout(r, 500));
+    setProgressPercent(70);
+    setProgressMsg('Mengirimkan payload ke Supabase Cloud REST API...');
+
     const res = await autoCreateAndSyncTables();
+
+    setProgressPercent(100);
+    setProgressMsg('Sinkronisasi selesai!');
+    await new Promise(r => setTimeout(r, 400));
+
     setIsProcessing(false);
+    setProgressPercent(0);
 
     if (res.success) {
       onNotify('success', 'Tabel & Data Berhasil Disiapkan!', `Berhasil menyinkronkan ${res.syncedCount} record ke seluruh tabel Supabase Cloud.`);
@@ -77,6 +113,53 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
     }
 
     handleTestConnection();
+  };
+
+  const handlePullDataFromCloud = async () => {
+    setIsPulling(true);
+    setProgressPercent(20);
+    setProgressMsg('Mengecek perubahan di Supabase Cloud...');
+    onNotify('info', 'Sinkronisasi Cloud', 'Menarik data terbaru dari Database Supabase Cloud...');
+
+    await new Promise(r => setTimeout(r, 400));
+    setProgressPercent(60);
+    setProgressMsg('Menarik record dari 8 tabel cloud ke LocalStorage...');
+
+    const res = await pullFromSupabase();
+
+    setProgressPercent(100);
+    setProgressMsg('Tarik data selesai!');
+    await new Promise(r => setTimeout(r, 400));
+
+    setIsPulling(false);
+    setProgressPercent(0);
+
+    if (res.success) {
+      onNotify('success', 'Sinkronisasi Data Berhasil!', res.message);
+    } else {
+      onNotify('error', 'Gagal Pull Sync', res.message);
+    }
+
+    handleTestConnection();
+  };
+
+  const handleRunDiagnostic = async () => {
+    setIsDiagnosing(true);
+    onNotify('info', 'Menjalankan Audit Diagnostik', 'Memeriksa dan membandingkan record LocalStorage vs Supabase Cloud...');
+    const report = await runStateAndDatabaseDiagnostic();
+    setDiagnosticReport(report);
+    setIsDiagnosing(false);
+    onNotify('success', 'Hasil Audit Diagnostik Siap', report.crossReference.analysisMessage);
+  };
+
+  const handlePurgeGhostRecords = async () => {
+    const res = await purgeGhostRecords();
+    if (res.success) {
+      onNotify('success', 'Pembersihan Ghost Records', res.message);
+      handleRunDiagnostic();
+    } else {
+      onNotify('error', 'Gagal Purge Records', res.message);
+    }
   };
 
   return (
@@ -90,19 +173,39 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
           <div>
             <h2 className="text-lg font-bold text-slate-900">Database Supabase & SQL Automatic Generator</h2>
             <p className="text-xs text-slate-500">
-              Pengelolaan otomatis 5 tabel utama (`settings`, `classes`, `users`, `students`, `attendances`) dan eksekusi SQL SMAN 1 Lumbung
+              Pengelolaan otomatis 8 tabel utama (`settings`, `classes`, `users`, `students`, `attendances`, `role_permissions`, `locked_dates`, `audit_logs`)
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleRunDiagnostic}
+            disabled={isDiagnosing}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+            title="Audit Diagnostik Cross-Reference Record Siswa & Presensi"
+          >
+            <FileSearch className={`w-4 h-4 ${isDiagnosing ? 'animate-spin' : ''}`} />
+            <span>{isDiagnosing ? 'Mengaudit...' : 'Audit Diagnostik Data'}</span>
+          </button>
+
+          <button
+            onClick={handlePullDataFromCloud}
+            disabled={isPulling || isProcessing}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+            title="Sikronkan & Tarik Data dari Database Supabase Cloud ke Aplikasi"
+          >
+            <DownloadCloud className={`w-4 h-4 ${isPulling ? 'animate-bounce' : ''}`} />
+            <span>{isPulling ? 'Menarik Data Cloud...' : 'Tarik Data dari Cloud (Pull Sync)'}</span>
+          </button>
+
           <button
             onClick={handleAutoCreateAndSync}
-            disabled={isProcessing}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+            disabled={isProcessing || isPulling}
+            className="flex items-center gap-2 px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
           >
-            <Zap className={`w-4 h-4 ${isProcessing ? 'animate-bounce' : ''}`} />
-            <span>{isProcessing ? 'Proses Otomatis...' : 'Buat & Sinkronkan Otomatis Tabel'}</span>
+            <UploadCloud className={`w-4 h-4 ${isProcessing ? 'animate-bounce' : ''}`} />
+            <span>{isProcessing ? 'Proses Sync...' : 'Kirim / Sinkron Data ke Cloud'}</span>
           </button>
 
           <button
@@ -114,6 +217,134 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
           </button>
         </div>
       </div>
+
+      {/* SYNC PROGRESS UPDATE INDICATOR BAR */}
+      {(isProcessing || isPulling) && (
+        <div className="bg-white border border-indigo-200 rounded-2xl p-5 shadow-sm space-y-3 animate-fade-in">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-slate-900 flex items-center gap-2">
+              <Loader2 className="w-4 h-4 text-indigo-600 animate-spin" />
+              <span>{progressMsg}</span>
+            </span>
+            <span className="font-mono font-bold text-indigo-700">{progressPercent}%</span>
+          </div>
+
+          <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden border border-slate-200 p-0.5">
+            <div
+              className="bg-gradient-to-r from-indigo-600 via-indigo-500 to-emerald-500 h-full rounded-full transition-all duration-300 shadow-sm"
+              style={{ width: `${progressPercent}%` }}
+            ></div>
+          </div>
+        </div>
+      )}
+
+      {/* DIAGNOSTIC AUDIT REPORT PANEL */}
+      {diagnosticReport && (
+        <div className="bg-white border border-amber-200 rounded-2xl p-6 shadow-sm space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between border-b border-amber-100 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-amber-50 text-amber-600 rounded-xl border border-amber-200">
+                <FileSearch className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">Laporan Audit Diagnostik System & Ghost Records</h3>
+                <p className="text-[11px] text-slate-500 font-mono">Diperbarui: {new Date(diagnosticReport.timestamp).toLocaleTimeString()}</p>
+              </div>
+            </div>
+
+            <button
+              onClick={handlePurgeGhostRecords}
+              className="flex items-center gap-2 px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition-all"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Bersihkan Ghost Records (Purge)</span>
+            </button>
+          </div>
+
+          <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-950 font-medium leading-relaxed">
+            <strong>Status Cross-Reference:</strong> {diagnosticReport.crossReference.analysisMessage}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {/* Local Storage Summary */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <h4 className="font-bold text-slate-900 flex items-center justify-between">
+                <span>1. LocalStorage State (Runtime)</span>
+                <span className="font-mono text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">
+                  {diagnosticReport.localState.studentsCount} Siswa
+                </span>
+              </h4>
+              <ul className="space-y-1 text-slate-600 font-mono text-[11px]">
+                <li>• Presensi Local: <strong>{diagnosticReport.localState.attendancesCount}</strong> record</li>
+                <li>• Rombel Local: <strong>{diagnosticReport.localState.classesCount}</strong> record</li>
+                <li>• User Local: <strong>{diagnosticReport.localState.usersCount}</strong> record</li>
+              </ul>
+            </div>
+
+            {/* Supabase Cloud Summary */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+              <h4 className="font-bold text-slate-900 flex items-center justify-between">
+                <span>2. Supabase Cloud DB</span>
+                <span className={`font-mono px-2 py-0.5 rounded border ${
+                  diagnosticReport.remoteDatabase.connected
+                    ? 'text-emerald-600 bg-emerald-50 border-emerald-100'
+                    : 'text-rose-600 bg-rose-50 border-rose-100'
+                }`}>
+                  {diagnosticReport.remoteDatabase.connected ? `${diagnosticReport.remoteDatabase.studentsCount} Siswa` : 'Terputus'}
+                </span>
+              </h4>
+              <ul className="space-y-1 text-slate-600 font-mono text-[11px]">
+                <li>• Presensi Cloud: <strong>{diagnosticReport.remoteDatabase.attendancesCount}</strong> record</li>
+                <li>• Rombel Cloud: <strong>{diagnosticReport.remoteDatabase.classesCount}</strong> record</li>
+                <li>• User Cloud: <strong>{diagnosticReport.remoteDatabase.usersCount}</strong> record</li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Ghost Records Detail list */}
+          {(diagnosticReport.crossReference.ghostStudentsInLocal.length > 0 || diagnosticReport.crossReference.ghostAttendancesInLocal.length > 0 || diagnosticReport.crossReference.orphanAttendancesInLocal.length > 0) && (
+            <div className="p-4 bg-rose-50/70 border border-rose-200 rounded-xl text-xs text-rose-950 space-y-2">
+              <h4 className="font-bold flex items-center gap-2 text-rose-900">
+                <AlertTriangle className="w-4 h-4 text-rose-600" />
+                <span>Rincian Ghost / Mismatch Records Ditemukan:</span>
+              </h4>
+
+              {diagnosticReport.crossReference.ghostStudentsInLocal.length > 0 && (
+                <div>
+                  <span className="font-bold text-[11px] block text-rose-900">Ghost Siswa di LocalStorage:</span>
+                  <ul className="list-disc list-inside font-mono text-[11px] text-rose-800">
+                    {diagnosticReport.crossReference.ghostStudentsInLocal.map((g, idx) => (
+                      <li key={idx}>{g}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {diagnosticReport.crossReference.ghostAttendancesInLocal.length > 0 && (
+                <div>
+                  <span className="font-bold text-[11px] block text-rose-900">Ghost Presensi di LocalStorage:</span>
+                  <ul className="list-disc list-inside font-mono text-[11px] text-rose-800">
+                    {diagnosticReport.crossReference.ghostAttendancesInLocal.map((g, idx) => (
+                      <li key={idx}>{g}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {diagnosticReport.crossReference.orphanAttendancesInLocal.length > 0 && (
+                <div>
+                  <span className="font-bold text-[11px] block text-rose-900">Absensi Yatim (Orphan ID):</span>
+                  <ul className="list-disc list-inside font-mono text-[11px] text-rose-800">
+                    {diagnosticReport.crossReference.orphanAttendancesInLocal.map((g, idx) => (
+                      <li key={idx}>{g}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Database Connection & Table Status Cards */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
@@ -141,20 +372,23 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
 
         <p className="text-xs text-slate-600 leading-relaxed font-medium">{statusMessage}</p>
 
-        {/* 5 Individual Tables Overview Grid */}
+        {/* 8 Individual Tables Overview Grid */}
         <div className="pt-2">
           <h4 className="text-xs font-bold text-slate-800 mb-3 flex items-center gap-2">
             <Layers className="w-4 h-4 text-indigo-600" />
-            <span>Daftar 5 Tabel Otomatis Supabase Cloud:</span>
+            <span>Daftar 8 Tabel Otomatis Supabase Cloud:</span>
           </h4>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {[
-              { id: 'settings', label: '1. Settings', desc: 'Pengaturan Jam' },
-              { id: 'classes', label: '2. Classes', desc: 'Kelas & Wali' },
-              { id: 'users', label: '3. Users', desc: 'Akun RBAC' },
+              { id: 'settings', label: '1. Settings', desc: 'Pengaturan Sekolah' },
+              { id: 'classes', label: '2. Classes', desc: 'Rombel & Wali' },
+              { id: 'users', label: '3. Users', desc: 'Akun & Peran' },
               { id: 'students', label: '4. Students', desc: 'Master Siswa' },
-              { id: 'attendances', label: '5. Attendances', desc: 'Rekap Presensi' }
+              { id: 'attendances', label: '5. Attendances', desc: 'Presensi Harian' },
+              { id: 'role_permissions', label: '6. Permissions', desc: 'Matriks RBAC' },
+              { id: 'locked_dates', label: '7. Locked Dates', desc: 'Kunci Presensi' },
+              { id: 'audit_logs', label: '8. Audit Logs', desc: 'Jejak Aktivitas' }
             ].map((tblInfo) => {
               const tblStatus = tables.find(t => t.name === tblInfo.id);
               const exists = tblStatus?.exists;
@@ -162,7 +396,7 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
               return (
                 <div
                   key={tblInfo.id}
-                  className={`p-3.5 rounded-xl border flex flex-col justify-between transition-all ${
+                  className={`p-3 rounded-xl border flex flex-col justify-between transition-all ${
                     exists
                       ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950 shadow-2xs'
                       : 'bg-slate-50 border-slate-200 text-slate-600'
@@ -183,11 +417,11 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
                   <div className="text-[11px] font-bold">
                     {exists ? (
                       <span className="text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-md inline-block">
-                        {tblStatus?.count || 0} Record Data
+                        {tblStatus?.count || 0} Record
                       </span>
                     ) : (
                       <span className="text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-md inline-block">
-                        Belum Terbuat
+                        Belum Ada
                       </span>
                     )}
                   </div>
@@ -219,7 +453,7 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
               <Terminal className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Skrip DDL SQL Seluruh Tabel & Data Awal</h3>
+              <h3 className="text-sm font-bold text-slate-900">Skrip DDL SQL Seluruh 8 Tabel & Data Awal</h3>
               <p className="text-[11px] text-slate-500">
                 Lengkap dengan aturan RLS, indeks performa, dan data seed awal SMAN 1 Lumbung
               </p>
@@ -244,7 +478,7 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
               <li>Buka dashboard Supabase Anda: <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer" className="underline font-bold text-indigo-700 inline-flex items-center gap-1">supabase.com/dashboard <ExternalLink className="w-3 h-3" /></a></li>
               <li>Pilih proyek Supabase Anda, lalu masuk ke menu <strong>SQL Editor</strong> pada bilah navigasi kiri.</li>
               <li>Klik <strong>"New Query"</strong>, tempelkan (Paste) skrip SQL yang disalin, lalu klik tombol <strong>"Run"</strong>.</li>
-              <li>Seluruh 5 tabel beserta data awal akan otomatis dibuat dan siap digunakan!</li>
+              <li>Seluruh 8 tabel beserta data awal akan otomatis dibuat dan siap digunakan!</li>
             </ol>
           </div>
         </div>

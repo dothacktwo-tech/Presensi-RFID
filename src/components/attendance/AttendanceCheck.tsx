@@ -242,10 +242,10 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ onOpenManualIn
               <select
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
-                className="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-xl px-3 py-2 focus:border-indigo-600"
+                className="w-full bg-white border border-slate-200 text-xs text-slate-900 rounded-xl px-3 py-2 focus:border-indigo-600 font-medium"
               >
                 <option value="ALL">Semua Kelas</option>
-                {classes.map((c) => (
+                {[...classes].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })).map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>

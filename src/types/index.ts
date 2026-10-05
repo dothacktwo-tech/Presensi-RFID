@@ -3,6 +3,7 @@ export type UserRole = 'admin' | 'guru_piket' | 'wali_kelas';
 export interface User {
   id: string;
   username: string;
+  passwordHash?: string; // Hashed password (SHA-256)
   name: string;
   email: string;
   role: UserRole;
@@ -71,6 +72,7 @@ export interface SchoolSettings {
   lateToleranceMinutes: number; // e.g. 5
   soundEnabled: boolean;
   autoMarkAlpaTime: string; // e.g. "10:00"
+  autoLockEnabled?: boolean; // Penguncian Otomatis Akhir Hari
 }
 
 export interface AttendanceSummary {
@@ -93,3 +95,24 @@ export interface ScanResult {
   message: string;
   lateMinutes?: number;
 }
+
+export type MenuKey =
+  | 'dashboard'
+  | 'classes'
+  | 'students'
+  | 'students-print'
+  | 'attendance-check'
+  | 'manual-input'
+  | 'attendance-history'
+  | 'scanner'
+  | 'reports'
+  | 'reports-rekap'
+  | 'reports-pdf'
+  | 'reports-excel'
+  | 'users'
+  | 'sidebar-settings'
+  | 'school-settings'
+  | 'supabase-settings';
+
+export type RolePermissionsMap = Record<UserRole, Record<MenuKey, boolean>>;
+

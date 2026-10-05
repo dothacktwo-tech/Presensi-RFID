@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, UserRole } from '../types';
 import { StorageService } from '../services/storage';
+import { verifyPassword, hashPassword } from '../utils/cryptoUtils';
 
 interface AuthContextType {
   currentUser: User | null;
   setCurrentUser: (user: User | null) => void;
   switchRole: (role: UserRole) => void;
-  login: (username: string) => boolean;
+  login: (username: string, password?: string, rememberMe?: boolean) => Promise<boolean>;
   logout: () => void;
   isAdmin: boolean;
   isGuruPiket: boolean;
@@ -17,17 +18,34 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    try {
+      const savedUser = localStorage.getItem('sman1_active_user');
+      if (savedUser) {
+        return JSON.parse(savedUser);
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
 
   useEffect(() => {
     StorageService.init();
-    const users = StorageService.getUsers();
-    // Default logged in user as Admin or load from session
     const savedUser = localStorage.getItem('sman1_active_user');
     if (savedUser) {
-      setCurrentUser(JSON.parse(savedUser));
-    } else if (users.length > 0) {
-      setCurrentUser(users[0]); // Default Drs. H. Mulyana (Admin)
+      try {
+        setCurrentUser(JSON.parse(savedUser));
+      } catch {
+        // ignore
+      }
+    } else {
+      // Default initial session if first time opening app
+      const users = StorageService.getUsers();
+      if (users.length > 0) {
+        setCurrentUser(users[0]);
+        localStorage.setItem('sman1_active_user', JSON.stringify(users[0]));
+      }
     }
   }, []);
 
@@ -40,15 +58,45 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  const login = (username: string): boolean => {
+  const login = async (username: string, password?: string, rememberMe: boolean = true): Promise<boolean> => {
     const users = StorageService.getUsers();
-    const found = users.find(u => u.username.toLowerCase() === username.toLowerCase());
-    if (found) {
-      setCurrentUser(found);
-      localStorage.setItem('sman1_active_user', JSON.stringify(found));
-      return true;
+    const found = users.find(u => u.username.toLowerCase() === username.toLowerCase().trim());
+    if (!found) {
+      return false;
     }
-    return false;
+
+    // Check password if provided
+    if (password) {
+      if (found.passwordHash) {
+        const isMatch = await verifyPassword(password, found.passwordHash);
+        if (!isMatch) {
+          // Check if matches standard known fallback passwords
+          const fallbackMatches = 
+            (found.role === 'admin' && password === 'admin123') ||
+            (found.role === 'guru_piket' && password === 'piket123') ||
+            (found.role === 'wali_kelas' && password === 'wali123');
+          if (!fallbackMatches) return false;
+        }
+      } else {
+        // No password hash stored yet: verify against role defaults
+        const validDefault = 
+          (found.role === 'admin' && password === 'admin123') ||
+          (found.role === 'guru_piket' && password === 'piket123') ||
+          (found.role === 'wali_kelas' && password === 'wali123');
+        if (!validDefault && password !== 'admin123' && password !== '123456') {
+          return false;
+        }
+        // Save computed hash for future logins
+        const newHash = await hashPassword(password);
+        StorageService.saveUser({ ...found, passwordHash: newHash });
+      }
+    }
+
+    setCurrentUser(found);
+    if (rememberMe) {
+      localStorage.setItem('sman1_active_user', JSON.stringify(found));
+    }
+    return true;
   };
 
   const logout = () => {

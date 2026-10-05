@@ -13,7 +13,10 @@ import {
   Volume2,
   VolumeX,
   History,
-  Search
+  Search,
+  CheckCircle2,
+  Zap,
+  Radio
 } from 'lucide-react';
 
 interface KioskScannerProps {
@@ -21,10 +24,13 @@ interface KioskScannerProps {
   onCloseKiosk?: () => void;
 }
 
+type KioskMode = 'DUAL' | 'RFID' | 'QR';
+
 export const KioskScanner: React.FC<KioskScannerProps> = ({
   isKioskFullscreen = false,
   onCloseKiosk
 }) => {
+  const [kioskMode, setKioskMode] = useState<KioskMode>('DUAL');
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [manualCode, setManualCode] = useState('');
   const [isCameraActive, setIsCameraActive] = useState(false);
@@ -71,8 +77,12 @@ export const KioskScanner: React.FC<KioskScannerProps> = ({
     refreshRecentScans();
   }, [triggerAudioFeedback, refreshRecentScans]);
 
+  // USB RFID Listener Keydown
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if RFID is disabled by mode or user typing in input
+      if (kioskMode === 'QR') return;
+
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
         return;
@@ -100,44 +110,62 @@ export const KioskScanner: React.FC<KioskScannerProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleProcessCode, refreshRecentScans]);
+  }, [handleProcessCode, refreshRecentScans, kioskMode]);
+
+  // Camera Management Helpers
+  const startCamera = async () => {
+    if (qrScannerRef.current) return;
+    setIsCameraActive(true);
+    setTimeout(async () => {
+      try {
+        const html5QrCode = new Html5Qrcode('qr-reader-kiosk');
+        qrScannerRef.current = html5QrCode;
+
+        await html5QrCode.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 220, height: 220 }
+          },
+          (decodedText) => {
+            handleProcessCode(decodedText, 'QR');
+          },
+          () => {}
+        );
+      } catch (err) {
+        console.error('Failed to start camera:', err);
+        setIsCameraActive(false);
+      }
+    }, 200);
+  };
+
+  const stopCamera = async () => {
+    if (qrScannerRef.current) {
+      try {
+        await qrScannerRef.current.stop();
+        qrScannerRef.current.clear();
+      } catch (e) {
+        console.warn('Camera stop error:', e);
+      }
+      qrScannerRef.current = null;
+    }
+    setIsCameraActive(false);
+  };
+
+  // Auto-manage Camera state based on selected Kiosk Mode
+  useEffect(() => {
+    if (kioskMode === 'QR') {
+      startCamera();
+    } else if (kioskMode === 'RFID') {
+      stopCamera();
+    }
+  }, [kioskMode]);
 
   const toggleCamera = async () => {
     if (isCameraActive) {
-      if (qrScannerRef.current) {
-        try {
-          await qrScannerRef.current.stop();
-          qrScannerRef.current.clear();
-        } catch (e) {
-          console.warn('Camera stop error:', e);
-        }
-        qrScannerRef.current = null;
-      }
-      setIsCameraActive(false);
+      await stopCamera();
     } else {
-      setIsCameraActive(true);
-      setTimeout(async () => {
-        try {
-          const html5QrCode = new Html5Qrcode('qr-reader-kiosk');
-          qrScannerRef.current = html5QrCode;
-
-          await html5QrCode.start(
-            { facingMode: 'environment' },
-            {
-              fps: 10,
-              qrbox: { width: 220, height: 220 }
-            },
-            (decodedText) => {
-              handleProcessCode(decodedText, 'QR');
-            },
-            () => {}
-          );
-        } catch (err) {
-          console.error('Failed to start camera:', err);
-          setIsCameraActive(false);
-          alert('Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.');
-        }
-      }, 200);
+      await startCamera();
     }
   };
 
@@ -152,86 +180,154 @@ export const KioskScanner: React.FC<KioskScannerProps> = ({
   return (
     <div className={`flex flex-col gap-6 ${isKioskFullscreen ? 'p-6 bg-slate-50 text-slate-900 min-h-screen' : ''}`}>
       {/* Kiosk Mode Top Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-4 lg:p-6 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center font-bold">
-            <QrCode className="w-6 h-6 animate-pulse" />
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 lg:p-6 shadow-sm space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center font-bold">
+              <QrCode className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h2 className="text-lg lg:text-xl font-extrabold text-slate-900 tracking-tight">
+                Kiosk Scan Presensi Siswa SMAN 1 Lumbung
+              </h2>
+              <p className="text-xs text-slate-500">
+                Pilih mode pemindaian aktif di bawah: RFID Card Reader atau Kamera QR Code
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg lg:text-xl font-extrabold text-slate-900 tracking-tight">
-              Kiosk Scan Presensi Siswa SMAN 1 Lumbung
-            </h2>
-            <p className="text-xs text-slate-500">
-              Mendukung input otomatis USB RFID Reader & Pemindaian Kamera QR Code
-            </p>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSoundMuted(!soundMuted)}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all ${
+                soundMuted
+                  ? 'bg-slate-100 text-slate-500 border-slate-200'
+                  : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+              }`}
+            >
+              {soundMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-indigo-600" />}
+              <span>{soundMuted ? 'Suara Muted' : 'Suara Aktif'}</span>
+            </button>
+
+            {isKioskFullscreen && onCloseKiosk && (
+              <button
+                onClick={onCloseKiosk}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+              >
+                Tutup Kiosk
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSoundMuted(!soundMuted)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
-              soundMuted
-                ? 'bg-slate-100 text-slate-500 border-slate-200'
-                : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-            }`}
-          >
-            {soundMuted ? <VolumeX className="w-4 h-4 text-slate-400" /> : <Volume2 className="w-4 h-4 text-indigo-600" />}
-            <span>{soundMuted ? 'Suara Muted' : 'Suara Aktif'}</span>
-          </button>
+        {/* KIOSK SCANNING MODE SELECTOR MENU */}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-2.5 rounded-2xl border border-slate-200">
+          <span className="text-xs font-bold text-slate-700 flex items-center gap-2">
+            <Radio className="w-4 h-4 text-indigo-600 animate-pulse" />
+            <span>Pilih Mode Pemindaian Kiosk:</span>
+          </span>
 
-          {isKioskFullscreen && onCloseKiosk && (
+          <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-200 text-xs font-bold shadow-2xs">
             <button
-              onClick={onCloseKiosk}
-              className="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-colors shadow-sm"
+              type="button"
+              onClick={() => setKioskMode('RFID')}
+              className={`px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all ${
+                kioskMode === 'RFID'
+                  ? 'bg-indigo-600 text-white shadow-xs font-extrabold'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
             >
-              Tutup Kiosk
+              <CreditCard className="w-4 h-4" />
+              <span>RFID Card Reader</span>
             </button>
-          )}
+
+            <button
+              type="button"
+              onClick={() => setKioskMode('QR')}
+              className={`px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all ${
+                kioskMode === 'QR'
+                  ? 'bg-indigo-600 text-white shadow-xs font-extrabold'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Camera className="w-4 h-4" />
+              <span>Kamera QR Code</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setKioskMode('DUAL')}
+              className={`px-3.5 py-1.5 rounded-lg flex items-center gap-2 transition-all ${
+                kioskMode === 'DUAL'
+                  ? 'bg-emerald-600 text-white shadow-xs font-extrabold'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <Zap className="w-4 h-4" />
+              <span>Mode Dual (RFID + QR)</span>
+            </button>
+          </div>
         </div>
       </div>
 
       <ScanFeedback result={scanResult} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Card 1: RFID USB Reader Listener Info */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
+        <div
+          className={`bg-white border rounded-2xl p-6 flex flex-col justify-between transition-all ${
+            kioskMode === 'RFID' || kioskMode === 'DUAL'
+              ? 'border-indigo-300 ring-2 ring-indigo-500/20 shadow-sm'
+              : 'border-slate-200 opacity-60'
+          }`}
+        >
           <div>
             <div className="flex items-center gap-3 mb-3">
               <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600">
                 <CreditCard className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-sm font-bold text-slate-900">USB RFID Reader</h3>
-                <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-bold">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                  Standby Otomatis
-                </span>
+                <h3 className="text-sm font-bold text-slate-900">USB RFID Card Reader</h3>
+                {kioskMode === 'RFID' || kioskMode === 'DUAL' ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+                    Mode RFID Standby & Active
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-400 font-bold">Mode Non-Aktif</span>
+                )}
               </div>
             </div>
+
             <p className="text-xs text-slate-500 leading-relaxed">
-              Hubungkan pembaca RFID USB ke perangkat. Cukup tempelkan kartu RFID siswa, sistem akan membaca dan memproses presensi secara instant.
+              Hubungkan pembaca RFID USB. Cukup tempelkan kartu RFID siswa ke sensor, sistem akan membaca UID dan mencatat jam presensi otomatis.
             </p>
           </div>
 
-          <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
-            <span className="text-[11px] font-mono text-indigo-700 font-bold">
-              Input String RFID diakhiri &apos;ENTER&apos;
+          <div className="mt-4 p-3 bg-indigo-50/70 border border-indigo-100 rounded-xl text-center">
+            <span className="text-[11px] font-mono text-indigo-800 font-bold">
+              Auto Read USB Card Reader [Diakhiri Enter]
             </span>
           </div>
         </div>
 
         {/* Card 2: QR Code Camera Scanner */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
+        <div
+          className={`bg-white border rounded-2xl p-6 flex flex-col justify-between transition-all ${
+            kioskMode === 'QR' || kioskMode === 'DUAL'
+              ? 'border-emerald-300 ring-2 ring-emerald-500/20 shadow-sm'
+              : 'border-slate-200 opacity-60'
+          }`}
+        >
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-3">
-                <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600">
+                <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600">
                   <Camera className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-slate-900">Kamera QR Code</h3>
-                  <p className="text-[10px] text-slate-500">Scan via WebCam</p>
+                  <h3 className="text-sm font-bold text-slate-900">Pemindaian Kamera QR Code</h3>
+                  <p className="text-[10px] text-slate-500">Scan QR Kartu Pelajar via WebCam</p>
                 </div>
               </div>
 
@@ -260,51 +356,10 @@ export const KioskScanner: React.FC<KioskScannerProps> = ({
               {!isCameraActive && (
                 <div className="p-4 text-center text-slate-400 text-xs">
                   <QrCode className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                  Kamera non-aktif. Klik tombol di atas untuk menyalakan.
+                  Kamera WebCam siap digunakan. Klik &apos;Buka Kamera&apos; di atas.
                 </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {/* Card 3: Manual Code / NIS Input Form */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col justify-between shadow-sm">
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600">
-                <Keyboard className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Input NIS / RFID Manual</h3>
-                <p className="text-[10px] text-slate-500">Gunakan jika kartu fisik tertinggal</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleManualSubmit} className="space-y-3 mt-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  Ketik NIS / UID RFID / Kode QR
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={manualCode}
-                    onChange={(e) => setManualCode(e.target.value)}
-                    placeholder="Contoh: 23241001 atau 0008472910"
-                    className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:border-indigo-600 font-mono"
-                  />
-                  <Search className="w-4 h-4 text-slate-400 absolute right-3 top-3" />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={!manualCode.trim()}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-all shadow-sm"
-              >
-                Proses Presensi Manual
-              </button>
-            </form>
           </div>
         </div>
       </div>

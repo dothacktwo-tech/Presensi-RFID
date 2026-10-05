@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { StorageService } from '../../services/storage';
+import { MenuKey, RolePermissionsMap, UserRole } from '../../types';
 import {
   LayoutDashboard,
   Building2,
@@ -9,8 +11,6 @@ import {
   Settings,
   ChevronDown,
   ChevronRight,
-  UserPlus,
-  Upload,
   Printer,
   Clock,
   Calendar,
@@ -23,7 +23,10 @@ import {
   PanelLeft,
   X,
   QrCode,
-  List
+  List,
+  Sparkles,
+  ShieldCheck,
+  School
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -48,6 +51,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { currentUser, isAdmin, isGuruPiket } = useAuth();
 
   const isMinimalist = sidebarMode === 'minimalist';
+
+  // Role Permissions state for RBAC Menu Visibility
+  const [rolePermissions, setRolePermissions] = useState<RolePermissionsMap>(() =>
+    StorageService.getRolePermissions()
+  );
+
+  useEffect(() => {
+    const handleDataUpdate = () => {
+      setRolePermissions(StorageService.getRolePermissions());
+    };
+
+    window.addEventListener('sman1_data_updated', handleDataUpdate);
+    return () => window.removeEventListener('sman1_data_updated', handleDataUpdate);
+  }, []);
+
+  const userRole: UserRole = currentUser?.role || 'guru_piket';
+
+  const isAllowed = (menuKey: MenuKey): boolean => {
+    if (isAdmin) {
+      if (rolePermissions?.admin && rolePermissions.admin[menuKey] === false) {
+        return false;
+      }
+      return true;
+    }
+
+    if (!rolePermissions || !rolePermissions[userRole]) return true;
+    return rolePermissions[userRole][menuKey] !== false;
+  };
 
   // Accordion open state map
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({
@@ -93,7 +124,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   const menuGroupClass = isMinimalist
     ? "hidden"
-    : "text-[11px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-1.5 mt-4";
+    : "text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3 mb-1.5 mt-5 first:mt-2 select-none";
+
+  // Check group visibility
+  const showDataMasterGroup = isAllowed('classes') || isAllowed('students') || isAllowed('students-print');
+  const showKehadiranGroup = isAllowed('attendance-check') || isAllowed('manual-input') || isAllowed('attendance-history') || isAllowed('scanner');
+  const showLaporanGroup = isAllowed('reports') || isAllowed('reports-rekap') || isAllowed('reports-pdf') || isAllowed('reports-excel');
+  const showPengaturanGroup = isAllowed('users') || isAllowed('sidebar-settings') || isAllowed('school-settings') || isAllowed('supabase-settings');
 
   return (
     <>
@@ -101,497 +138,517 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isMobileOpen && (
         <div
           onClick={() => setIsMobileOpen && setIsMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-xs lg:hidden transition-opacity"
+          className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-xs lg:hidden transition-opacity duration-300"
         />
       )}
 
-      {/* Main Sidebar Element */}
+      {/* Main Clean White Sidebar Container */}
       <aside
-        className={`fixed lg:static top-0 left-0 z-50 h-full min-h-screen bg-white border-r border-slate-200 text-slate-700 flex flex-col shrink-0 shadow-sm transition-all duration-300 ${
+        className={`fixed lg:static top-0 left-0 z-50 h-full min-h-screen bg-white border-r border-slate-200/80 text-slate-700 flex flex-col shrink-0 shadow-xs transition-all duration-300 ease-in-out ${
           isMinimalist ? 'w-20' : 'w-64'
         } ${
           isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full lg:translate-x-0'
         }`}
       >
-        {/* Header / Mobile Close Bar */}
-        <div className="p-3 border-b border-slate-100 flex items-center justify-between lg:hidden">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">
-              S
+        {/* Clean Sidebar Top Header */}
+        <div className="h-14 px-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <div className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 shrink-0">
+              <List className="w-4 h-4" />
             </div>
-            <span className="font-extrabold text-xs text-slate-900">SMAN 1 Lumbung</span>
+            {!isMinimalist && (
+              <span className="font-extrabold text-xs text-slate-800 uppercase tracking-wider">
+                Menu Utama
+              </span>
+            )}
           </div>
 
-          <button
-            onClick={() => setIsMobileOpen && setIsMobileOpen(false)}
-            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Sidebar Minimalist / Full Collapse Toggle */}
+            <button
+              onClick={toggleSidebarMode}
+              className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              title={isMinimalist ? "Perbesar Sidebar" : "Minimaliskan Sidebar"}
+            >
+              {isMinimalist ? <PanelLeft className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
+            </button>
+
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setIsMobileOpen && setIsMobileOpen(false)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 lg:hidden transition-colors"
+              aria-label="Tutup menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Scrollable Nav Container */}
-        <div className="p-3 flex-1 overflow-y-auto space-y-1">
-          {/* User Role Banner */}
-          {!isMinimalist ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-indigo-100 border border-indigo-200 text-indigo-700 flex items-center justify-center font-extrabold text-xs shrink-0">
-                  {currentUser?.name?.charAt(0) || 'U'}
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-slate-900 truncate">{currentUser?.name}</p>
-                  <p className="text-[10px] text-indigo-600 font-semibold capitalize truncate">
-                    {currentUser?.role === 'admin' ? 'Admin Administrator' : currentUser?.role === 'guru_piket' ? 'Guru Piket' : `Wali ${currentUser?.assignedClassName || ''}`}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex justify-center mb-3 pt-1">
-              <div
-                className="w-9 h-9 rounded-xl bg-indigo-100 border border-indigo-200 text-indigo-700 flex items-center justify-center font-extrabold text-xs"
-                title={`${currentUser?.name} (${currentUser?.role})`}
-              >
-                {currentUser?.name?.charAt(0) || 'U'}
-              </div>
-            </div>
-          )}
+        {/* Scrollable Navigation Body */}
+        <div className="p-3 flex-1 overflow-y-auto space-y-1 custom-scrollbar">
 
           {/* =================================================== */}
           {/* KELOMPOK 1: UTAMA */}
           {/* =================================================== */}
-          <p className={menuGroupClass}>UTAMA</p>
+          {isAllowed('dashboard') && (
+            <>
+              <p className={menuGroupClass}>UTAMA</p>
 
-          <button
-            onClick={() => handleTabClick('dashboard')}
-            title="Dashboard"
-            className={`w-full flex items-center gap-3 rounded-xl text-xs font-semibold transition-all ${
-              isMinimalist ? 'justify-center p-3' : 'px-3.5 py-2.5'
-            } ${
-              activeTab === 'dashboard'
-                ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-            }`}
-          >
-            <LayoutDashboard className={`w-4 h-4 shrink-0 ${activeTab === 'dashboard' ? 'text-white' : 'text-indigo-600'}`} />
-            {!isMinimalist && <span>Dashboard</span>}
-          </button>
+              <button
+                onClick={() => handleTabClick('dashboard')}
+                title="Dashboard Utama"
+                className={`group w-full flex items-center gap-3 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                  isMinimalist ? 'justify-center p-2.5' : 'px-3 py-2.5'
+                } ${
+                  activeTab === 'dashboard'
+                    ? 'bg-indigo-50 text-indigo-700 font-bold border-l-3 border-indigo-600 shadow-2xs'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <LayoutDashboard
+                  className={`w-4 h-4 shrink-0 transition-colors ${
+                    activeTab === 'dashboard'
+                      ? 'text-indigo-600'
+                      : 'text-slate-400 group-hover:text-indigo-600'
+                  }`}
+                />
+                {!isMinimalist && <span>Dashboard</span>}
+              </button>
+            </>
+          )}
 
           {/* =================================================== */}
           {/* KELOMPOK 2: DATA MASTER */}
           {/* =================================================== */}
-          <p className={menuGroupClass}>DATA MASTER</p>
+          {showDataMasterGroup && (
+            <>
+              <p className={menuGroupClass}>DATA MASTER</p>
 
-          {/* 1. Data Kelas */}
-          {isAdmin && (
-            <button
-              onClick={() => handleTabClick('classes')}
-              title="Data Kelas"
-              className={`w-full flex items-center gap-3 rounded-xl text-xs font-semibold transition-all ${
-                isMinimalist ? 'justify-center p-3' : 'px-3.5 py-2.5'
-              } ${
-                activeTab === 'classes'
-                  ? 'bg-indigo-600 text-white shadow-sm font-bold'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <Building2 className={`w-4 h-4 shrink-0 ${activeTab === 'classes' ? 'text-white' : 'text-indigo-600'}`} />
-              {!isMinimalist && <span>Data Kelas</span>}
-            </button>
-          )}
+              {/* 1. Data Kelas */}
+              {isAllowed('classes') && (
+                <button
+                  onClick={() => handleTabClick('classes')}
+                  title="Data Kelas"
+                  className={`group w-full flex items-center gap-3 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                    isMinimalist ? 'justify-center p-2.5' : 'px-3 py-2.5'
+                  } ${
+                    activeTab === 'classes'
+                      ? 'bg-indigo-50 text-indigo-700 font-bold border-l-3 border-indigo-600 shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <Building2
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      activeTab === 'classes'
+                        ? 'text-indigo-600'
+                        : 'text-slate-400 group-hover:text-indigo-600'
+                    }`}
+                  />
+                  {!isMinimalist && <span>Data Kelas</span>}
+                </button>
+              )}
 
-          {/* 2. Data Siswa (Accordion) */}
-          {isAdmin && (
-            <div>
-              <button
-                onClick={() => toggleAccordion('siswa')}
-                title="Data Siswa"
-                className={`w-full flex items-center justify-between rounded-xl text-xs font-semibold transition-all ${
-                  isMinimalist ? 'justify-center p-3' : 'px-3.5 py-2.5'
-                } ${
-                  ['students', 'students-list', 'students-add', 'students-upload', 'students-print'].includes(activeTab)
-                    ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Users className="w-4 h-4 text-indigo-600 shrink-0" />
-                  {!isMinimalist && <span>Data Siswa</span>}
-                </div>
-                {!isMinimalist && (
-                  openAccordions.siswa ? (
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
-                  ) : (
-                    <ChevronRight className="w-4 h-4 text-slate-400" />
-                  )
-                )}
-              </button>
-
-              {/* Submenu Accordion Data Siswa */}
-              {!isMinimalist && openAccordions.siswa && (
-                <div className="mt-1 ml-4 pl-3 border-l-2 border-slate-200 space-y-1 py-1">
+              {/* 2. Data Siswa (Accordion) */}
+              {(isAllowed('students') || isAllowed('students-print')) && (
+                <div>
                   <button
-                    onClick={() => handleTabClick('students')}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                      activeTab === 'students' || activeTab === 'students-list'
-                        ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100'
+                    onClick={() => toggleAccordion('siswa')}
+                    title="Data Siswa"
+                    className={`group w-full flex items-center justify-between rounded-xl text-xs font-semibold transition-all duration-150 ${
+                      isMinimalist ? 'justify-center p-2.5' : 'px-3 py-2.5'
+                    } ${
+                      ['students', 'students-list', 'students-print'].includes(activeTab)
+                        ? 'bg-slate-50 text-indigo-700 font-bold'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
-                    <List className="w-3.5 h-3.5 shrink-0" />
-                    <span>Daftar Siswa</span>
+                    <div className="flex items-center gap-3">
+                      <Users
+                        className={`w-4 h-4 shrink-0 transition-colors ${
+                          ['students', 'students-list', 'students-print'].includes(activeTab)
+                            ? 'text-indigo-600'
+                            : 'text-slate-400 group-hover:text-indigo-600'
+                        }`}
+                      />
+                      {!isMinimalist && <span>Data Siswa</span>}
+                    </div>
+                    {!isMinimalist && (
+                      <ChevronRight
+                        className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                          openAccordions.siswa ? 'rotate-90 text-indigo-600' : ''
+                        }`}
+                      />
+                    )}
                   </button>
 
-                  <button
-                    onClick={() => handleTabClick('students-add')}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                      activeTab === 'students-add'
-                        ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <UserPlus className="w-3.5 h-3.5 shrink-0" />
-                    <span>Tambah Siswa</span>
-                  </button>
+                  {/* Submenu Accordion Data Siswa */}
+                  {!isMinimalist && openAccordions.siswa && (
+                    <div className="mt-1 ml-4 pl-3 border-l border-slate-200/70 space-y-0.5 py-0.5">
+                      {isAllowed('students') && (
+                        <button
+                          onClick={() => handleTabClick('students')}
+                          className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                            activeTab === 'students' || activeTab === 'students-list'
+                              ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                              : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                          }`}
+                        >
+                          <List className="w-3.5 h-3.5 shrink-0" />
+                          <span>Daftar Siswa</span>
+                        </button>
+                      )}
 
-                  <button
-                    onClick={() => handleTabClick('students-upload')}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                      activeTab === 'students-upload'
-                        ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Upload className="w-3.5 h-3.5 shrink-0" />
-                    <span>Import / Upload Data</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleTabClick('students-print')}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                      activeTab === 'students-print'
-                        ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <Printer className="w-3.5 h-3.5 shrink-0" />
-                    <span>Cetak Data Siswa</span>
-                  </button>
+                      {isAllowed('students-print') && (
+                        <button
+                          onClick={() => handleTabClick('students-print')}
+                          className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                            activeTab === 'students-print'
+                              ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                              : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                          }`}
+                        >
+                          <Printer className="w-3.5 h-3.5 shrink-0" />
+                          <span>Cetak Data Siswa</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
+            </>
           )}
 
           {/* =================================================== */}
           {/* KELOMPOK 3: KEHADIRAN */}
           {/* =================================================== */}
-          <p className={menuGroupClass}>KEHADIRAN</p>
+          {showKehadiranGroup && (
+            <>
+              <p className={menuGroupClass}>KEHADIRAN</p>
 
-          {/* Absensi Accordion */}
-          <div>
-            <button
-              onClick={() => toggleAccordion('absensi')}
-              title="Absensi"
-              className={`w-full flex items-center justify-between rounded-xl text-xs font-semibold transition-all ${
-                isMinimalist ? 'justify-center p-3' : 'px-3.5 py-2.5'
-              } ${
-                ['attendance-check', 'attendance-today', 'manual-input', 'attendance-history', 'scanner'].includes(activeTab)
-                  ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <UserCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                {!isMinimalist && <span>Absensi</span>}
-              </div>
-              {!isMinimalist && (
-                openAccordions.absensi ? (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                )
-              )}
-            </button>
-
-            {/* Submenu Accordion Absensi */}
-            {!isMinimalist && openAccordions.absensi && (
-              <div className="mt-1 ml-4 pl-3 border-l-2 border-slate-200 space-y-1 py-1">
+              {/* Absensi Accordion */}
+              <div>
                 <button
-                  onClick={() => handleTabClick('attendance-check')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'attendance-check' || activeTab === 'attendance-today'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
+                  onClick={() => toggleAccordion('absensi')}
+                  title="Absensi"
+                  className={`group w-full flex items-center justify-between rounded-xl text-xs font-semibold transition-all duration-150 ${
+                    isMinimalist ? 'justify-center p-2.5' : 'px-3 py-2.5'
+                  } ${
+                    ['attendance-check', 'attendance-today', 'manual-input', 'attendance-history', 'scanner'].includes(activeTab)
+                      ? 'bg-slate-50 text-indigo-700 font-bold'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span>Absensi Hari Ini</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('manual-input')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'manual-input'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <UserCheck className="w-3.5 h-3.5 shrink-0" />
-                  <span>Absensi Manual</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('attendance-history')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'attendance-history'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <Clock className="w-3.5 h-3.5 shrink-0" />
-                  <span>Riwayat Absensi</span>
-                </button>
-
-                {isGuruPiket && (
-                  <>
-                    <button
-                      onClick={() => {
-                        onOpenKiosk();
-                        if (setIsMobileOpen) setIsMobileOpen(false);
-                      }}
-                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all mt-1"
-                    >
-                      <div className="flex items-center gap-2">
-                        <QrCode className="w-3.5 h-3.5 text-emerald-600 animate-pulse shrink-0" />
-                        <span>Kiosk Scan Mode</span>
-                      </div>
-                      <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-mono">LIVE</span>
-                    </button>
-
-                    <button
-                      onClick={() => handleTabClick('scanner')}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                        activeTab === 'scanner'
-                          ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                          : 'text-slate-600 hover:bg-slate-100'
+                  <div className="flex items-center gap-3">
+                    <UserCheck
+                      className={`w-4 h-4 shrink-0 transition-colors ${
+                        ['attendance-check', 'attendance-today', 'manual-input', 'attendance-history', 'scanner'].includes(activeTab)
+                          ? 'text-emerald-600'
+                          : 'text-slate-400 group-hover:text-emerald-600'
                       }`}
-                    >
-                      <Clock className="w-3.5 h-3.5 shrink-0" />
-                      <span>Input Scan RFID / QR</span>
-                    </button>
-                  </>
+                    />
+                    {!isMinimalist && <span>Absensi</span>}
+                  </div>
+                  {!isMinimalist && (
+                    <ChevronRight
+                      className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                        openAccordions.absensi ? 'rotate-90 text-indigo-600' : ''
+                      }`}
+                    />
+                  )}
+                </button>
+
+                {/* Submenu Accordion Absensi */}
+                {!isMinimalist && openAccordions.absensi && (
+                  <div className="mt-1 ml-4 pl-3 border-l border-slate-200/70 space-y-0.5 py-0.5">
+                    {isAllowed('attendance-check') && (
+                      <button
+                        onClick={() => handleTabClick('attendance-check')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'attendance-check' || activeTab === 'attendance-today'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <Calendar className="w-3.5 h-3.5 shrink-0" />
+                        <span>Absensi Hari Ini</span>
+                      </button>
+                    )}
+
+                    {isAllowed('manual-input') && (
+                      <button
+                        onClick={() => handleTabClick('manual-input')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'manual-input'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <UserCheck className="w-3.5 h-3.5 shrink-0" />
+                        <span>Absensi Manual</span>
+                      </button>
+                    )}
+
+                    {isAllowed('attendance-history') && (
+                      <button
+                        onClick={() => handleTabClick('attendance-history')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'attendance-history'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <Clock className="w-3.5 h-3.5 shrink-0" />
+                        <span>Riwayat Absensi</span>
+                      </button>
+                    )}
+
+                    {isAllowed('scanner') && isGuruPiket && (
+                      <>
+                        <button
+                          onClick={() => {
+                            onOpenKiosk();
+                            if (setIsMobileOpen) setIsMobileOpen(false);
+                          }}
+                          className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 transition-all duration-150 mt-1 shadow-2xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <QrCode className="w-3.5 h-3.5 text-emerald-600 animate-pulse shrink-0" />
+                            <span>Kiosk Scan Mode</span>
+                          </div>
+                          <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-mono font-bold tracking-tight">LIVE</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleTabClick('scanner')}
+                          className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                            activeTab === 'scanner'
+                              ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                              : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                          }`}
+                        >
+                          <Clock className="w-3.5 h-3.5 shrink-0" />
+                          <span>Input Scan RFID / QR</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </>
+          )}
 
           {/* =================================================== */}
           {/* KELOMPOK 4: LAPORAN */}
           {/* =================================================== */}
-          <p className={menuGroupClass}>LAPORAN</p>
+          {showLaporanGroup && (
+            <>
+              <p className={menuGroupClass}>LAPORAN</p>
 
-          {/* Laporan Accordion */}
-          <div>
-            <button
-              onClick={() => toggleAccordion('laporan')}
-              title="Laporan"
-              className={`w-full flex items-center justify-between rounded-xl text-xs font-semibold transition-all ${
-                isMinimalist ? 'justify-center p-3' : 'px-3.5 py-2.5'
-              } ${
-                ['reports', 'reports-daily', 'reports-weekly', 'reports-monthly', 'reports-rekap', 'reports-pdf', 'reports-excel'].includes(activeTab)
-                  ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
-                {!isMinimalist && <span>Laporan</span>}
+              {/* Laporan Accordion */}
+              <div>
+                <button
+                  onClick={() => toggleAccordion('laporan')}
+                  title="Laporan"
+                  className={`group w-full flex items-center justify-between rounded-xl text-xs font-semibold transition-all duration-150 ${
+                    isMinimalist ? 'justify-center p-2.5' : 'px-3 py-2.5'
+                  } ${
+                    ['reports', 'reports-daily', 'reports-weekly', 'reports-monthly', 'reports-rekap', 'reports-pdf', 'reports-excel'].includes(activeTab)
+                      ? 'bg-slate-50 text-indigo-700 font-bold'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <FileText
+                      className={`w-4 h-4 shrink-0 transition-colors ${
+                        ['reports', 'reports-daily', 'reports-weekly', 'reports-monthly', 'reports-rekap', 'reports-pdf', 'reports-excel'].includes(activeTab)
+                          ? 'text-indigo-600'
+                          : 'text-slate-400 group-hover:text-indigo-600'
+                      }`}
+                    />
+                    {!isMinimalist && <span>Laporan</span>}
+                  </div>
+                  {!isMinimalist && (
+                    <ChevronRight
+                      className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                        openAccordions.laporan ? 'rotate-90 text-indigo-600' : ''
+                      }`}
+                    />
+                  )}
+                </button>
+
+                {/* Submenu Accordion Laporan */}
+                {!isMinimalist && openAccordions.laporan && (
+                  <div className="mt-1 ml-4 pl-3 border-l border-slate-200/70 space-y-0.5 py-0.5">
+                    {isAllowed('reports') && (
+                      <button
+                        onClick={() => handleTabClick('reports')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'reports' || activeTab === 'reports-daily' || activeTab === 'reports-weekly' || activeTab === 'reports-monthly'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        <span>Laporan Absensi</span>
+                      </button>
+                    )}
+
+                    {isAllowed('reports-rekap') && (
+                      <button
+                        onClick={() => handleTabClick('reports-rekap')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'reports-rekap'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+                        <span>Rekapitulasi Absensi</span>
+                      </button>
+                    )}
+
+                    {isAllowed('reports-pdf') && (
+                      <button
+                        onClick={() => handleTabClick('reports-pdf')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'reports-pdf'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <Printer className="w-3.5 h-3.5 shrink-0" />
+                        <span>Cetak PDF</span>
+                      </button>
+                    )}
+
+                    {isAllowed('reports-excel') && (
+                      <button
+                        onClick={() => handleTabClick('reports-excel')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'reports-excel'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <Download className="w-3.5 h-3.5 shrink-0" />
+                        <span>Export Excel/CSV</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              {!isMinimalist && (
-                openAccordions.laporan ? (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                )
-              )}
-            </button>
-
-            {/* Submenu Accordion Laporan */}
-            {!isMinimalist && openAccordions.laporan && (
-              <div className="mt-1 ml-4 pl-3 border-l-2 border-slate-200 space-y-1 py-1">
-                <button
-                  onClick={() => handleTabClick('reports-daily')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'reports-daily' || activeTab === 'reports'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5 shrink-0" />
-                  <span>Laporan Harian</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('reports-weekly')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'reports-weekly'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span>Laporan Mingguan</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('reports-monthly')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'reports-monthly'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span>Laporan Bulanan</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('reports-rekap')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'reports-rekap'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
-                  <span>Rekapitulasi Absensi</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('reports-pdf')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'reports-pdf'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <Printer className="w-3.5 h-3.5 shrink-0" />
-                  <span>Cetak PDF</span>
-                </button>
-
-                <button
-                  onClick={() => handleTabClick('reports-excel')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'reports-excel'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  <Download className="w-3.5 h-3.5 shrink-0" />
-                  <span>Export Excel/CSV</span>
-                </button>
-              </div>
-            )}
-          </div>
+            </>
+          )}
 
           {/* =================================================== */}
           {/* KELOMPOK 5: PENGATURAN */}
           {/* =================================================== */}
-          <p className={menuGroupClass}>PENGATURAN</p>
+          {showPengaturanGroup && (
+            <>
+              <p className={menuGroupClass}>PENGATURAN</p>
 
-          {/* Pengaturan Accordion */}
-          <div>
-            <button
-              onClick={() => toggleAccordion('pengaturan')}
-              title="Pengaturan"
-              className={`w-full flex items-center justify-between rounded-xl text-xs font-semibold transition-all ${
-                isMinimalist ? 'justify-center p-3' : 'px-3.5 py-2.5'
-              } ${
-                ['users', 'sidebar-settings', 'school-settings', 'settings', 'supabase-settings'].includes(activeTab)
-                  ? 'bg-indigo-50 text-indigo-700 font-bold border border-indigo-200'
-                  : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Settings className="w-4 h-4 text-indigo-600 shrink-0" />
-                {!isMinimalist && <span>Pengaturan</span>}
-              </div>
-              {!isMinimalist && (
-                openAccordions.pengaturan ? (
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-slate-400" />
-                )
-              )}
-            </button>
-
-            {/* Submenu Accordion Pengaturan */}
-            {!isMinimalist && openAccordions.pengaturan && (
-              <div className="mt-1 ml-4 pl-3 border-l-2 border-slate-200 space-y-1 py-1">
-                {isAdmin && (
-                  <button
-                    onClick={() => handleTabClick('users')}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                      activeTab === 'users'
-                        ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <UserCog className="w-3.5 h-3.5 shrink-0" />
-                    <span>Manajemen User (RBAC)</span>
-                  </button>
-                )}
-
+              {/* Pengaturan Accordion */}
+              <div>
                 <button
-                  onClick={() => handleTabClick('sidebar-settings')}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                    activeTab === 'sidebar-settings'
-                      ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                      : 'text-slate-600 hover:bg-slate-100'
+                  onClick={() => toggleAccordion('pengaturan')}
+                  title="Pengaturan"
+                  className={`group w-full flex items-center justify-between rounded-xl text-xs font-semibold transition-all duration-150 ${
+                    isMinimalist ? 'justify-center p-2.5' : 'px-3 py-2.5'
+                  } ${
+                    ['users', 'sidebar-settings', 'school-settings', 'settings', 'supabase-settings'].includes(activeTab)
+                      ? 'bg-slate-50 text-indigo-700 font-bold'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
-                  <Sliders className="w-3.5 h-3.5 shrink-0" />
-                  <span>Pengaturan Sidebar</span>
+                  <div className="flex items-center gap-3">
+                    <Settings
+                      className={`w-4 h-4 shrink-0 transition-colors ${
+                        ['users', 'sidebar-settings', 'school-settings', 'settings', 'supabase-settings'].includes(activeTab)
+                          ? 'text-indigo-600'
+                          : 'text-slate-400 group-hover:text-indigo-600'
+                      }`}
+                    />
+                    {!isMinimalist && <span>Pengaturan</span>}
+                  </div>
+                  {!isMinimalist && (
+                    <ChevronRight
+                      className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
+                        openAccordions.pengaturan ? 'rotate-90 text-indigo-600' : ''
+                      }`}
+                    />
+                  )}
                 </button>
 
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={() => handleTabClick('school-settings')}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                        activeTab === 'school-settings' || activeTab === 'settings'
-                          ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      <Settings className="w-3.5 h-3.5 shrink-0" />
-                      <span>Jam & Profil Sekolah</span>
-                    </button>
+                {/* Submenu Accordion Pengaturan */}
+                {!isMinimalist && openAccordions.pengaturan && (
+                  <div className="mt-1 ml-4 pl-3 border-l border-slate-200/70 space-y-0.5 py-0.5">
+                    {isAllowed('users') && (
+                      <button
+                        onClick={() => handleTabClick('users')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'users'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <UserCog className="w-3.5 h-3.5 shrink-0" />
+                        <span>Manajemen User (RBAC)</span>
+                      </button>
+                    )}
 
-                    <button
-                      onClick={() => handleTabClick('supabase-settings')}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-all ${
-                        activeTab === 'supabase-settings'
-                          ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                          : 'text-slate-600 hover:bg-slate-100'
-                      }`}
-                    >
-                      <Database className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      <span>Database Supabase & SQL</span>
-                    </button>
-                  </>
+                    {isAllowed('sidebar-settings') && (
+                      <button
+                        onClick={() => handleTabClick('sidebar-settings')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'sidebar-settings'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <Sliders className="w-3.5 h-3.5 shrink-0" />
+                        <span>Pengaturan Sidebar</span>
+                      </button>
+                    )}
+
+                    {isAllowed('school-settings') && (
+                      <button
+                        onClick={() => handleTabClick('school-settings')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'school-settings' || activeTab === 'settings'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <Settings className="w-3.5 h-3.5 shrink-0" />
+                        <span>Jam & Profil Sekolah</span>
+                      </button>
+                    )}
+
+                    {isAllowed('supabase-settings') && (
+                      <button
+                        onClick={() => handleTabClick('supabase-settings')}
+                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                          activeTab === 'supabase-settings'
+                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                        }`}
+                      >
+                        <Database className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>Database Supabase & SQL</span>
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
 
-        {/* Footer Toggle Button */}
-        <div className="p-3 border-t border-slate-200">
+        {/* Footer Toggle Button & App Meta */}
+        <div className="p-3 border-t border-slate-100 bg-slate-50/50 shrink-0">
           <button
             onClick={toggleSidebarMode}
-            className="w-full flex items-center justify-center gap-2 p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all border border-slate-200 mb-2"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all duration-150 border border-slate-200/80 shadow-2xs"
             title={isMinimalist ? "Buka Sidebar Full" : "Ciutkan ke Sidebar Minimalis"}
           >
             {isMinimalist ? (
@@ -599,15 +656,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ) : (
               <>
                 <PanelLeftClose className="w-4 h-4 text-indigo-600" />
-                <span>Sidebar Minimalis</span>
+                <span>Ciutkan Sidebar</span>
               </>
             )}
           </button>
 
           {!isMinimalist && (
-            <div className="text-[10px] text-slate-500 text-center font-medium">
-              <p className="font-bold text-slate-700">SMAN 1 Lumbung v2.5</p>
-              <p>Mode: {isMinimalist ? 'Minimalis' : 'Full'}</p>
+            <div className="text-[10px] text-slate-400 text-center font-medium mt-2">
+              <p className="font-bold text-slate-600">SMAN 1 Lumbung v2.5</p>
+              <p className="text-[9px] text-slate-400">Presensi & Realtime Sync Active</p>
             </div>
           )}
         </div>

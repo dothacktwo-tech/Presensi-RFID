@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { StorageService } from './services/storage';
+import { useSyncData } from './hooks/useSyncData';
 import { Navbar } from './components/common/Navbar';
 import { Sidebar } from './components/common/Sidebar';
 import { ToastContainer, ToastMessage } from './components/common/Toast';
@@ -17,7 +17,7 @@ import { AttendanceReport } from './components/report/AttendanceReport';
 import { SchoolSettings } from './components/settings/SchoolSettings';
 import { SupabaseSettings } from './components/settings/SupabaseSettings';
 import { SidebarSettings } from './components/settings/SidebarSettings';
-import { AttendanceRecord, StudentClass, Student } from './types';
+import { LoginPage } from './components/auth/LoginPage';
 import { QrCode } from 'lucide-react';
 
 function AppContent() {
@@ -33,9 +33,19 @@ function AppContent() {
     return saved === 'minimalist' || saved === 'full' ? saved : 'full';
   });
 
-  const [students, setStudents] = useState<Student[]>([]);
-  const [classes, setClasses] = useState<StudentClass[]>([]);
-  const [attendances, setAttendances] = useState<AttendanceRecord[]>([]);
+  // UNIFIED DATA-FETCHING HOOK WITH SYNCHRONOUS SUPABASE PARITY & REALTIME DIAGNOSTICS
+  const {
+    students,
+    classes,
+    attendances,
+    isSyncing,
+    lastSyncTime,
+    diagnosticSummary,
+    syncData,
+    getDisplayedStudents,
+    getDisplayedAttendances,
+    getDisplayedClasses
+  } = useSyncData({ autoFetchRemoteOnMount: true, enableLogging: true });
 
   const addToast = (type: 'success' | 'warning' | 'error' | 'info', title: string, message?: string) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
@@ -49,19 +59,23 @@ function AppContent() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   };
 
-  const loadDashboardData = useCallback(() => {
-    setStudents(StorageService.getStudents());
-    setClasses(StorageService.getClasses());
-    setAttendances(StorageService.getAttendances());
-  }, []);
-
-  useEffect(() => {
-    StorageService.init();
-    loadDashboardData();
-  }, [loadDashboardData]);
-
   const today = new Date().toISOString().split('T')[0];
-  const todayAttendances = attendances.filter(a => a.date === today);
+
+  const displayedStudents = getDisplayedStudents(currentUser?.role, currentUser?.assignedClassId);
+  const displayedAttendances = getDisplayedAttendances(currentUser?.role, currentUser?.assignedClassId);
+  const displayedClasses = getDisplayedClasses(currentUser?.role, currentUser?.assignedClassId);
+
+  const todayAttendances = displayedAttendances.filter(a => a.date === today);
+
+  // If user is not authenticated, render Login Page
+  if (!currentUser) {
+    return (
+      <>
+        <ToastContainer toasts={toasts} onDismiss={removeToast} />
+        <LoginPage />
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased selection:bg-indigo-600 selection:text-white">
@@ -74,7 +88,7 @@ function AppContent() {
           isKioskFullscreen={true}
           onCloseKiosk={() => {
             setIsKioskFullscreen(false);
-            loadDashboardData();
+            syncData(true);
           }}
         />
       ) : (
@@ -109,10 +123,10 @@ function AppContent() {
                   <div className="bg-gradient-to-r from-indigo-900 via-indigo-800 to-indigo-950 rounded-2xl p-6 shadow-md text-white flex flex-wrap items-center justify-between gap-4">
                     <div>
                       <span className="text-[11px] font-mono font-bold text-indigo-300 uppercase tracking-widest">
-                        SMAN 1 Lumbung • Presensi Siswa
+                        Dashboard Realtime Presensi
                       </span>
                       <h2 className="text-xl lg:text-2xl font-black text-white tracking-tight mt-0.5">
-                        Sistem Presensi Siswa SMAN 1 Lumbung
+                        Ringkasan Monitoring Kehadiran Siswa
                       </h2>
                       <p className="text-xs text-indigo-100 mt-1">
                         {isWaliKelas
@@ -132,18 +146,22 @@ function AppContent() {
                     )}
                   </div>
 
-                  {/* Stat Cards with Period Switcher */}
+                  {/* Stat Cards with Period Switcher & Sync Controls */}
                   <StatCards
-                    students={students}
-                    attendances={attendances}
+                    students={displayedStudents}
+                    attendances={displayedAttendances}
+                    isSyncing={isSyncing}
+                    onForceSync={() => syncData(true)}
+                    lastSyncTime={lastSyncTime}
+                    diagnosticSummary={diagnosticSummary}
                   />
 
                   {/* Grid Charts & Recent Stream */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <AttendanceChart
-                      classes={classes}
-                      attendances={attendances}
-                      students={students}
+                      classes={displayedClasses}
+                      attendances={displayedAttendances}
+                      students={displayedStudents}
                     />
                     <RecentScansList records={todayAttendances.slice(0, 8)} />
                   </div>
@@ -190,7 +208,7 @@ function AppContent() {
                   <ManualInputModal
                     onSuccess={(msg) => {
                       addToast('success', 'Presensi Disimpan', msg);
-                      loadDashboardData();
+                      syncData(true);
                     }}
                   />
                 </div>

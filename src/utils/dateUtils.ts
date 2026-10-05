@@ -94,3 +94,46 @@ export const generateSampleDates = (daysCount: number = 7): string[] => {
   }
   return dates;
 };
+
+/**
+ * Returns Academic Year string based on Academic Calendar (e.g. "2026/2027")
+ * Academic year starts in July (month index 6) and ends in June (month index 5).
+ */
+export const getAcademicYearFromDate = (dateInput?: Date | string): string => {
+  let date: Date;
+  if (!dateInput) {
+    date = new Date();
+  } else if (typeof dateInput === 'string') {
+    date = new Date(dateInput);
+    if (isNaN(date.getTime())) date = new Date();
+  } else {
+    date = dateInput;
+  }
+
+  const year = date.getFullYear();
+  const month = date.getMonth(); // 0-indexed: 0 = Jan, 6 = July
+  if (month >= 6) {
+    return `${year}/${year + 1}`;
+  } else {
+    return `${year - 1}/${year}`;
+  }
+};
+
+/**
+ * Returns Semester string based on Academic Calendar ("Ganjil" or "Genap")
+ */
+export const getSemesterFromDate = (dateInput?: Date | string): string => {
+  let date: Date;
+  if (!dateInput) {
+    date = new Date();
+  } else if (typeof dateInput === 'string') {
+    date = new Date(dateInput);
+    if (isNaN(date.getTime())) date = new Date();
+  } else {
+    date = dateInput;
+  }
+
+  const month = date.getMonth();
+  return month >= 6 ? 'Ganjil' : 'Genap';
+};
+

@@ -5,9 +5,20 @@ import {
   AttendanceRecord,
   SchoolSettings,
   ScanResult,
-  ScanMethod
+  ScanMethod,
+  RolePermissionsMap
 } from '../types';
 import { getTodayDateString, getCurrentTimeString, calculateLateMinutes } from '../utils/dateUtils';
+import {
+  deleteRecordFromSupabase,
+  syncStudentToSupabase,
+  syncClassToSupabase,
+  syncUserToSupabase,
+  syncAttendanceToSupabase,
+  syncSettingsToSupabase,
+  syncRolePermissionsToSupabase,
+  syncLockedDateToSupabase
+} from './supabase';
 
 const STORAGE_KEYS = {
   USERS: 'sman1_lumbung_users',
@@ -29,7 +40,8 @@ const DEFAULT_SETTINGS: SchoolSettings = {
   exitTimeLimit: '15:30',
   lateToleranceMinutes: 5,
   soundEnabled: true,
-  autoMarkAlpaTime: '10:00'
+  autoMarkAlpaTime: '10:00',
+  autoLockEnabled: true
 };
 
 const DEFAULT_CLASSES: StudentClass[] = [
@@ -44,6 +56,7 @@ const DEFAULT_USERS: User[] = [
   {
     id: 'usr-1',
     username: 'admin',
+    passwordHash: '240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9', // admin123
     name: 'Drs. H. Mulyana, M.Pd.',
     email: 'admin@sman1lumbung.sch.id',
     role: 'admin',
@@ -53,6 +66,7 @@ const DEFAULT_USERS: User[] = [
   {
     id: 'usr-piket',
     username: 'piket',
+    passwordHash: 'a93b4d458c9735d4653e05a8f94d13712d989f55e378c772cb83a45c331165dc', // piket123
     name: 'Ahmad Fauzi, S.Pd.',
     email: 'fauzi.piket@sman1lumbung.sch.id',
     role: 'guru_piket',
@@ -62,6 +76,7 @@ const DEFAULT_USERS: User[] = [
   {
     id: 'usr-2',
     username: 'walixiipa1',
+    passwordHash: '268db4da6ebbf0f6a2b8e3ad5bcf7047f3b6a9394f7247fb459df95171732551', // wali123
     name: 'Siti Aminah, S.Pd.',
     email: 'sitiaminah@sman1lumbung.sch.id',
     role: 'wali_kelas',
@@ -73,6 +88,7 @@ const DEFAULT_USERS: User[] = [
   {
     id: 'usr-3',
     username: 'walixipa1',
+    passwordHash: '268db4da6ebbf0f6a2b8e3ad5bcf7047f3b6a9394f7247fb459df95171732551', // wali123
     name: 'Budi Santoso, S.Pd.',
     email: 'budisantoso@sman1lumbung.sch.id',
     role: 'wali_kelas',
@@ -199,6 +215,8 @@ export class StorageService {
 
   static saveSettings(settings: SchoolSettings): void {
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+    this.notifyDataChanged();
+    syncSettingsToSupabase(settings);
   }
 
   // --- CLASSES ---
@@ -228,18 +246,28 @@ export class StorageService {
       classes.push(cls);
     }
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+    this.notifyDataChanged();
+    syncClassToSupabase(cls);
   }
 
   static deleteClass(classId: string): void {
     const classes = this.getClasses().filter(c => c.id !== classId);
     localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classes));
+    this.notifyDataChanged();
+    deleteRecordFromSupabase('classes', [classId]);
   }
 
   // --- STUDENTS ---
   static getStudents(): Student[] {
     this.init();
     const data = localStorage.getItem(STORAGE_KEYS.STUDENTS);
-    return data ? JSON.parse(data) : [];
+    if (!data) return [];
+    try {
+      const parsed = JSON.parse(data);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
   }
 
   static getStudentById(id: string): Student | undefined {
@@ -265,6 +293,8 @@ export class StorageService {
       students.push(student);
     }
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+    this.notifyDataChanged();
+    syncStudentToSupabase(student);
   }
 
   static bulkInsertStudents(newStudents: Partial<Student>[]): { inserted: number; errors: string[] } {
@@ -311,16 +341,20 @@ export class StorageService {
       };
 
       updated.push(newStudent);
+      syncStudentToSupabase(newStudent);
       count++;
     });
 
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updated));
+    this.notifyDataChanged();
     return { inserted: count, errors };
   }
 
   static deleteStudent(id: string): void {
     const students = this.getStudents().filter(s => s.id !== id);
     localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(students));
+    this.notifyDataChanged();
+    deleteRecordFromSupabase('students', [id]);
   }
 
   // --- ATTENDANCE PROCESSING ---
@@ -402,6 +436,8 @@ export class StorageService {
 
     allAttendances.unshift(newRecord); // Add to top
     localStorage.setItem(STORAGE_KEYS.ATTENDANCES, JSON.stringify(allAttendances));
+    this.notifyDataChanged();
+    syncAttendanceToSupabase(newRecord);
 
     if (isLate) {
       return {
@@ -456,6 +492,8 @@ export class StorageService {
     }
 
     localStorage.setItem(STORAGE_KEYS.ATTENDANCES, JSON.stringify(attendances));
+    this.notifyDataChanged();
+    syncAttendanceToSupabase(fullRecord);
   }
 
   static updateAttendanceStatus(id: string, status: AttendanceRecord['status'], notes?: string): void {
@@ -465,12 +503,16 @@ export class StorageService {
       attendances[index].status = status;
       if (notes !== undefined) attendances[index].notes = notes;
       localStorage.setItem(STORAGE_KEYS.ATTENDANCES, JSON.stringify(attendances));
+      this.notifyDataChanged();
+      syncAttendanceToSupabase(attendances[index]);
     }
   }
 
   static deleteAttendance(id: string): void {
     const attendances = this.getAttendances().filter(a => a.id !== id);
     localStorage.setItem(STORAGE_KEYS.ATTENDANCES, JSON.stringify(attendances));
+    this.notifyDataChanged();
+    deleteRecordFromSupabase('attendances', [id]);
   }
 
   // --- USERS & RBAC ---
@@ -489,11 +531,106 @@ export class StorageService {
       users.push(user);
     }
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    this.notifyDataChanged();
+    syncUserToSupabase(user);
   }
 
   static deleteUser(id: string): void {
     const users = this.getUsers().filter(u => u.id !== id);
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+    this.notifyDataChanged();
+    deleteRecordFromSupabase('users', [id]);
+  }
+
+  static notifyDataChanged(): void {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('sman1_data_updated'));
+    }
+  }
+
+  static bulkDeleteStudents(ids: string[]): number {
+    const existing = this.getStudents();
+    const updated = existing.filter(s => !ids.includes(s.id));
+    const count = existing.length - updated.length;
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(updated));
+    this.notifyDataChanged();
+    deleteRecordFromSupabase('students', ids);
+    return count;
+  }
+
+  // --- ROLE PERMISSIONS (RBAC MATRIX) ---
+  static getRolePermissions(): RolePermissionsMap {
+    const data = localStorage.getItem('sman1_lumbung_role_permissions');
+    if (data) {
+      try {
+        return JSON.parse(data);
+      } catch (e) {
+        console.error('Failed to parse role permissions:', e);
+      }
+    }
+
+    return {
+      admin: {
+        dashboard: true,
+        classes: true,
+        students: true,
+        'students-print': true,
+        'attendance-check': true,
+        'manual-input': true,
+        'attendance-history': true,
+        scanner: true,
+        reports: true,
+        'reports-rekap': true,
+        'reports-pdf': true,
+        'reports-excel': true,
+        users: true,
+        'sidebar-settings': true,
+        'school-settings': true,
+        'supabase-settings': true
+      },
+      guru_piket: {
+        dashboard: true,
+        classes: false,
+        students: true,
+        'students-print': false,
+        'attendance-check': true,
+        'manual-input': true,
+        'attendance-history': true,
+        scanner: true,
+        reports: true,
+        'reports-rekap': true,
+        'reports-pdf': true,
+        'reports-excel': true,
+        users: false,
+        'sidebar-settings': true,
+        'school-settings': false,
+        'supabase-settings': false
+      },
+      wali_kelas: {
+        dashboard: true,
+        classes: false,
+        students: false,
+        'students-print': false,
+        'attendance-check': true,
+        'manual-input': false,
+        'attendance-history': true,
+        scanner: false,
+        reports: true,
+        'reports-rekap': true,
+        'reports-pdf': true,
+        'reports-excel': true,
+        users: false,
+        'sidebar-settings': true,
+        'school-settings': false,
+        'supabase-settings': false
+      }
+    };
+  }
+
+  static saveRolePermissions(map: RolePermissionsMap): void {
+    localStorage.setItem('sman1_lumbung_role_permissions', JSON.stringify(map));
+    this.notifyDataChanged();
+    syncRolePermissionsToSupabase(map);
   }
 
   // --- LOCKED DATES & BATCH PERMISSION ---
@@ -502,9 +639,31 @@ export class StorageService {
     return data ? JSON.parse(data) : [];
   }
 
+  static getUnlockedDates(): string[] {
+    const data = localStorage.getItem('sman1_lumbung_unlocked_dates');
+    return data ? JSON.parse(data) : [];
+  }
+
   static isDateLocked(date: string): boolean {
+    const unlocked = this.getUnlockedDates();
+    if (unlocked.includes(date)) {
+      return false; // Explicitly unlocked by Admin
+    }
+
     const locked = this.getLockedDates();
-    return locked.includes(date);
+    if (locked.includes(date)) {
+      return true; // Explicitly locked
+    }
+
+    const settings = this.getSettings();
+    const today = getTodayDateString();
+
+    // Auto-lock at end of day (past dates) if autoLockEnabled is true
+    if (settings.autoLockEnabled !== false && date < today) {
+      return true;
+    }
+
+    return false;
   }
 
   static lockDate(date: string): void {
@@ -513,10 +672,37 @@ export class StorageService {
       locked.push(date);
       localStorage.setItem('sman1_lumbung_locked_dates', JSON.stringify(locked));
     }
+    const unlocked = this.getUnlockedDates().filter(d => d !== date);
+    localStorage.setItem('sman1_lumbung_unlocked_dates', JSON.stringify(unlocked));
+    this.notifyDataChanged();
+    syncLockedDateToSupabase(date, true);
   }
 
   static unlockDate(date: string): void {
     const locked = this.getLockedDates().filter(d => d !== date);
     localStorage.setItem('sman1_lumbung_locked_dates', JSON.stringify(locked));
+
+    const unlocked = this.getUnlockedDates();
+    if (!unlocked.includes(date)) {
+      unlocked.push(date);
+      localStorage.setItem('sman1_lumbung_unlocked_dates', JSON.stringify(unlocked));
+    }
+    this.notifyDataChanged();
+    syncLockedDateToSupabase(date, false);
+  }
+
+  static clearAllData(): void {
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.ATTENDANCES, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify([]));
+    this.notifyDataChanged();
+  }
+
+  static resetToSeedData(): void {
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
+    localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(DEFAULT_CLASSES));
+    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEFAULT_USERS));
+    localStorage.setItem(STORAGE_KEYS.STUDENTS, JSON.stringify(DEFAULT_STUDENTS));
+    this.notifyDataChanged();
   }
 }
