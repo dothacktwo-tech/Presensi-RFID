@@ -459,7 +459,7 @@ export class StorageService {
     };
   }
 
-  static createManualAttendance(record: Partial<AttendanceRecord>): void {
+  static async createManualAttendance(record: Partial<AttendanceRecord>): Promise<{ success: boolean; error?: string }> {
     const attendances = this.getAttendances();
     const today = record.date || getTodayDateString();
 
@@ -493,10 +493,14 @@ export class StorageService {
 
     localStorage.setItem(STORAGE_KEYS.ATTENDANCES, JSON.stringify(attendances));
     this.notifyDataChanged();
-    syncAttendanceToSupabase(fullRecord);
+    try {
+      return await syncAttendanceToSupabase(fullRecord);
+    } catch (e: any) {
+      return { success: false, error: e?.message || String(e) };
+    }
   }
 
-  static updateAttendanceStatus(id: string, status: AttendanceRecord['status'], notes?: string): void {
+  static async updateAttendanceStatus(id: string, status: AttendanceRecord['status'], notes?: string): Promise<{ success: boolean; error?: string }> {
     const attendances = this.getAttendances();
     const index = attendances.findIndex(a => a.id === id);
     if (index >= 0) {
@@ -504,15 +508,25 @@ export class StorageService {
       if (notes !== undefined) attendances[index].notes = notes;
       localStorage.setItem(STORAGE_KEYS.ATTENDANCES, JSON.stringify(attendances));
       this.notifyDataChanged();
-      syncAttendanceToSupabase(attendances[index]);
+      try {
+        return await syncAttendanceToSupabase(attendances[index]);
+      } catch (e: any) {
+        return { success: false, error: e?.message || String(e) };
+      }
     }
+    return { success: false, error: 'Record not found' };
   }
 
-  static deleteAttendance(id: string): void {
+  static async deleteAttendance(id: string): Promise<{ success: boolean; error?: string }> {
     const attendances = this.getAttendances().filter(a => a.id !== id);
     localStorage.setItem(STORAGE_KEYS.ATTENDANCES, JSON.stringify(attendances));
     this.notifyDataChanged();
-    deleteRecordFromSupabase('attendances', [id]);
+    try {
+      await deleteRecordFromSupabase('attendances', [id]);
+      return { success: true };
+    } catch (e: any) {
+      return { success: false, error: e?.message || String(e) };
+    }
   }
 
   // --- USERS & RBAC ---

@@ -135,7 +135,7 @@ function AppContent() {
                       </p>
                     </div>
 
-                    {isGuruPiket && (
+                    {isGuruPiket && !isAdmin && (
                       <button
                         onClick={() => setIsKioskFullscreen(true)}
                         className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-sm transition-all"
@@ -196,6 +196,7 @@ function AppContent() {
               {['attendance', 'attendance-check', 'attendance-today', 'attendance-history'].includes(activeTab) && (
                 <div className="animate-fade-in">
                   <AttendanceCheck
+                    isHistoryMode={activeTab === 'attendance-history'}
                     onOpenManualInput={() => setActiveTab('manual-input')}
                     onNotify={(type, title, message) => addToast(type, title, message)}
                   />

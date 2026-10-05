@@ -141,39 +141,26 @@ export const ManualInputModal: React.FC<ManualInputProps> = ({ onSuccess }) => {
     setPopupNotes(currentDraft.notes || '');
   };
 
-  const handleSavePopup = (e: React.FormEvent) => {
+  const handleSavePopup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStudentForPopup) return;
 
-    const studentId = selectedStudentForPopup.id;
+    const student = selectedStudentForPopup;
     const finalLate = popupStatus === 'TERLAMBAT' ? Math.max(1, popupLateMinutes) : 0;
 
-    setDrafts(prev => ({
-      ...prev,
-      [studentId]: {
-        status: popupStatus,
-        lateMinutes: finalLate,
-        notes: popupNotes
-      }
-    }));
-
-    setSelectedStudentForPopup(null);
-  };
-
-  const handleSaveAndLock = () => {
+    const isWithoutTime = popupStatus === 'SAKIT' || popupStatus === 'IZIN' || popupStatus === 'ALPA';
     const now = new Date();
     const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    const existingRecord = attendances.find(a => a.studentId === student.id && a.date === selectedDate);
 
-    let savedCount = 0;
+    let res: { success: boolean; error?: string } = { success: true };
 
-    students.forEach(student => {
-      const draft = drafts[student.id];
-      if (!draft || draft.status === 'UNABSENTED') return;
-
-      const existingRecord = attendances.find(a => a.studentId === student.id && a.date === selectedDate);
-      const isWithoutTime = draft.status === 'SAKIT' || draft.status === 'IZIN' || draft.status === 'ALPA';
-
-      StorageService.createManualAttendance({
+    if (popupStatus === 'UNABSENTED') {
+      if (existingRecord) {
+        res = await StorageService.deleteAttendance(existingRecord.id);
+      }
+    } else {
+      res = await StorageService.createManualAttendance({
         studentId: student.id,
         nis: student.nis,
         studentName: student.name,
@@ -181,21 +168,32 @@ export const ManualInputModal: React.FC<ManualInputProps> = ({ onSuccess }) => {
         className: student.className,
         date: selectedDate,
         time: isWithoutTime ? '-' : (existingRecord?.time && existingRecord.time !== '-' ? existingRecord.time : currentTimeStr),
-        status: draft.status,
-        lateMinutes: draft.status === 'TERLAMBAT' ? draft.lateMinutes : 0,
-        notes: draft.notes,
+        status: popupStatus as AttendanceStatus,
+        lateMinutes: finalLate,
+        notes: popupNotes,
         scannedBy: `${currentUser?.name || 'Petugas'} (Absensi Manual)`
       });
+    }
 
-      savedCount++;
-    });
+    setSelectedStudentForPopup(null);
+    refreshData();
 
+    if (res.success) {
+      if (onSuccess) {
+        onSuccess(`Presensi siswa ${student.name} berhasil disimpan.`);
+      }
+    } else {
+      alert(`Gagal menyimpan data ke database Supabase: ${res.error || 'Unknown error'}`);
+    }
+  };
+
+  const handleSaveAndLock = () => {
     // Lock the date batch
     StorageService.lockDate(selectedDate);
     refreshData();
 
     if (onSuccess) {
-      onSuccess(`Presensi tanggal ${selectedDate} (${savedCount} siswa) berhasil disimpan & dikunci!`);
+      onSuccess(`Presensi tanggal ${selectedDate} berhasil dikunci!`);
     }
   };
 
@@ -209,7 +207,7 @@ export const ManualInputModal: React.FC<ManualInputProps> = ({ onSuccess }) => {
     }
   };
 
-  const handleBulkApplyStatus = (
+  const handleBulkApplyStatus = async (
     targetStatus: AttendanceStatus,
     lateMinutes: number = 0,
     notes: string = '',
@@ -217,30 +215,39 @@ export const ManualInputModal: React.FC<ManualInputProps> = ({ onSuccess }) => {
   ) => {
     let affectedCount = 0;
     let skippedCount = 0;
+    const now = new Date();
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    const isWithoutTime = targetStatus === 'SAKIT' || targetStatus === 'IZIN' || targetStatus === 'ALPA';
 
-    setDrafts(prev => {
-      const updated = { ...prev };
-      filteredStudents.forEach(s => {
-        const currentStatus = updated[s.id]?.status || 'UNABSENTED';
-        if (onlyUnabsented && currentStatus !== 'UNABSENTED') {
-          skippedCount++;
-          return; // Kecualikan siswa yang sudah terisi statusnya
-        }
-        updated[s.id] = {
-          status: targetStatus,
-          lateMinutes: targetStatus === 'TERLAMBAT' ? Math.max(1, lateMinutes) : 0,
-          notes: notes || (targetStatus === 'ALPA' ? 'Penetapan Alpa Massal' : '')
-        };
-        affectedCount++;
+    for (const s of filteredStudents) {
+      const existing = attendances.find(a => a.studentId === s.id && a.date === selectedDate);
+      if (onlyUnabsented && existing) {
+        skippedCount++;
+        continue; // Kecualikan siswa yang sudah terisi statusnya
+      }
+
+      await StorageService.createManualAttendance({
+        studentId: s.id,
+        nis: s.nis,
+        studentName: s.name,
+        classId: s.classId,
+        className: s.className,
+        date: selectedDate,
+        time: isWithoutTime ? '-' : (existing?.time && existing.time !== '-' ? existing.time : currentTimeStr),
+        status: targetStatus,
+        lateMinutes: targetStatus === 'TERLAMBAT' ? Math.max(1, lateMinutes) : 0,
+        notes: notes || (targetStatus === 'ALPA' ? 'Penetapan Alpa Massal' : ''),
+        scannedBy: `${currentUser?.name || 'Petugas'} (Absensi Manual)`
       });
-      return updated;
-    });
+      affectedCount++;
+    }
 
     setIsBulkStatusModalOpen(false);
+    refreshData();
 
     if (onSuccess) {
       onSuccess(
-        `Berhasil menerapkan status ${targetStatus} ke ${affectedCount} siswa.${
+        `Berhasil menerapkan status ${targetStatus} ke ${affectedCount} siswa di database.${
           skippedCount > 0 ? ` (${skippedCount} siswa yang sudah terisi statusnya dikecualikan).` : ''
         }`
       );
@@ -291,31 +298,51 @@ export const ManualInputModal: React.FC<ManualInputProps> = ({ onSuccess }) => {
     setSelectedStudentIds([]);
   };
 
-  const handleApplyStatusToSelected = (
+  const handleApplyStatusToSelected = async (
     targetStatus: AttendanceStatus | 'UNABSENTED',
     lateMinutes: number = 0,
     notes: string = ''
   ) => {
     if (selectedStudentIds.length === 0) return;
 
-    setDrafts(prev => {
-      const updated = { ...prev };
-      selectedStudentIds.forEach(id => {
-        updated[id] = {
+    const now = new Date();
+    const currentTimeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    const isWithoutTime = targetStatus === 'SAKIT' || targetStatus === 'IZIN' || targetStatus === 'ALPA';
+
+    for (const id of selectedStudentIds) {
+      const s = students.find(std => std.id === id);
+      if (!s) continue;
+
+      const existing = attendances.find(a => a.studentId === s.id && a.date === selectedDate);
+
+      if (targetStatus === 'UNABSENTED') {
+        if (existing) {
+          await StorageService.deleteAttendance(existing.id);
+        }
+      } else {
+        await StorageService.createManualAttendance({
+          studentId: s.id,
+          nis: s.nis,
+          studentName: s.name,
+          classId: s.classId,
+          className: s.className,
+          date: selectedDate,
+          time: isWithoutTime ? '-' : (existing?.time && existing.time !== '-' ? existing.time : currentTimeStr),
           status: targetStatus,
           lateMinutes: targetStatus === 'TERLAMBAT' ? Math.max(1, lateMinutes) : 0,
-          notes: notes || (targetStatus === 'ALPA' ? 'Penetapan Alpa Massal' : '')
-        };
-      });
-      return updated;
-    });
+          notes: notes || (targetStatus === 'ALPA' ? 'Penetapan Alpa Massal' : ''),
+          scannedBy: `${currentUser?.name || 'Petugas'} (Absensi Manual)`
+        });
+      }
+    }
 
     const count = selectedStudentIds.length;
     setSelectedStudentIds([]);
     setIsCustomSelectedModalOpen(false);
+    refreshData();
 
     if (onSuccess) {
-      onSuccess(`Berhasil menerapkan status ${targetStatus} ke ${count} siswa terpilih!`);
+      onSuccess(`Berhasil menerapkan status ${targetStatus} ke ${count} siswa terpilih di database!`);
     }
   };
 

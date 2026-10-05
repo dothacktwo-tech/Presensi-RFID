@@ -12,6 +12,7 @@ export interface PdfExportOptions {
   className?: string;
   statusFilter?: string;
   generatedBy?: string;
+  includeKop?: boolean;
 }
 
 export const generateAttendancePdf = (options: PdfExportOptions) => {
@@ -23,7 +24,8 @@ export const generateAttendancePdf = (options: PdfExportOptions) => {
     endDate,
     className = 'Semua Kelas',
     statusFilter = 'Semua Status',
-    generatedBy = 'Sistem Absensi'
+    generatedBy = 'Sistem Absensi',
+    includeKop = true
   } = options;
 
   const doc = new jsPDF({
@@ -33,31 +35,34 @@ export const generateAttendancePdf = (options: PdfExportOptions) => {
   });
 
   const pageWidth = doc.internal.pageSize.getWidth();
+  const offsetY = includeKop ? 0 : -35;
 
   // --- SCHOOL HEADER (KOP SURAT) ---
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.text('PEMERINTAH PROVINSI JAWA BARAT', pageWidth / 2, 15, { align: 'center' });
-  doc.setFontSize(13);
-  doc.text('DINAS PENDIDIKAN', pageWidth / 2, 21, { align: 'center' });
-  doc.setFontSize(16);
-  doc.text(settings.schoolName.toUpperCase(), pageWidth / 2, 28, { align: 'center' });
-  
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(settings.address, pageWidth / 2, 34, { align: 'center' });
-  doc.text(`NPSN: ${settings.npsn} | Email: info@sman1lumbung.sch.id`, pageWidth / 2, 39, { align: 'center' });
+  if (includeKop) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text('PEMERINTAH PROVINSI JAWA BARAT', pageWidth / 2, 15, { align: 'center' });
+    doc.setFontSize(13);
+    doc.text('DINAS PENDIDIKAN', pageWidth / 2, 21, { align: 'center' });
+    doc.setFontSize(16);
+    doc.text(settings.schoolName.toUpperCase(), pageWidth / 2, 28, { align: 'center' });
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(settings.address, pageWidth / 2, 34, { align: 'center' });
+    doc.text(`NPSN: ${settings.npsn} | Email: info@sman1lumbung.sch.id`, pageWidth / 2, 39, { align: 'center' });
 
-  // Double Divider Line
-  doc.setLineWidth(0.8);
-  doc.line(15, 42, pageWidth - 15, 42);
-  doc.setLineWidth(0.2);
-  doc.line(15, 43, pageWidth - 15, 43);
+    // Double Divider Line
+    doc.setLineWidth(0.8);
+    doc.line(15, 42, pageWidth - 15, 42);
+    doc.setLineWidth(0.2);
+    doc.line(15, 43, pageWidth - 15, 43);
+  }
 
   // --- REPORT TITLE ---
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text(title, pageWidth / 2, 51, { align: 'center' });
+  doc.text(title, pageWidth / 2, 51 + offsetY, { align: 'center' });
 
   // --- METADATA INFO BOX ---
   doc.setFont('helvetica', 'normal');
@@ -67,11 +72,11 @@ export const generateAttendancePdf = (options: PdfExportOptions) => {
     ? (startDate === endDate ? formatIndonesianDate(startDate) : `${startDate} s.d. ${endDate}`)
     : formatIndonesianDate(new Date().toISOString().split('T')[0]);
 
-  doc.text(`Periode          : ${dateRangeStr}`, 15, 59);
-  doc.text(`Kelas            : ${className}`, 15, 64);
-  doc.text(`Filter Status   : ${statusFilter}`, 15, 69);
-  doc.text(`Total Data       : ${records.length} Record`, pageWidth - 15, 59, { align: 'right' });
-  doc.text(`Dicetak Pada   : ${new Date().toLocaleDateString('id-ID')} ${new Date().toLocaleTimeString('id-ID')}`, pageWidth - 15, 64, { align: 'right' });
+  doc.text(`Periode          : ${dateRangeStr}`, 15, 59 + offsetY);
+  doc.text(`Kelas            : ${className}`, 15, 64 + offsetY);
+  doc.text(`Filter Status   : ${statusFilter}`, 15, 69 + offsetY);
+  doc.text(`Total Data       : ${records.length} Record`, pageWidth - 15, 59 + offsetY, { align: 'right' });
+  doc.text(`Dicetak Pada   : ${new Date().toLocaleDateString('id-ID')} ${new Date().toLocaleTimeString('id-ID')}`, pageWidth - 15, 64 + offsetY, { align: 'right' });
 
   // --- SUMMARY STATS ---
   const hadir = records.filter(r => r.status === 'HADIR').length;
@@ -82,10 +87,10 @@ export const generateAttendancePdf = (options: PdfExportOptions) => {
   const totalLateMinutes = records.reduce((acc, r) => acc + (r.lateMinutes || 0), 0);
 
   doc.setFillColor(245, 247, 250);
-  doc.rect(15, 73, pageWidth - 30, 8, 'F');
+  doc.rect(15, 73 + offsetY, pageWidth - 30, 8, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(8);
-  doc.text(`Ringkasan: HADIR (${hadir}) | TERLAMBAT (${terlambat}) | SAKIT (${sakit}) | IZIN (${izin}) | ALPA (${alpa}) | Total Keterlambatan: ${totalLateMinutes} mnt`, 17, 78);
+  doc.text(`Ringkasan: HADIR (${hadir}) | TERLAMBAT (${terlambat}) | SAKIT (${sakit}) | IZIN (${izin}) | ALPA (${alpa}) | Total Keterlambatan: ${totalLateMinutes} mnt`, 17, 78 + offsetY);
 
   // --- ATTENDANCE TABLE ---
   const tableData = records.map((rec, index) => [
@@ -102,7 +107,7 @@ export const generateAttendancePdf = (options: PdfExportOptions) => {
   ]);
 
   autoTable(doc, {
-    startY: 84,
+    startY: 84 + offsetY,
     head: [['No', 'NIS', 'Nama Siswa', 'Kelas', 'Tanggal', 'Jam', 'Metode', 'Status', 'Keterlambatan', 'Keterangan']],
     body: tableData,
     theme: 'grid',

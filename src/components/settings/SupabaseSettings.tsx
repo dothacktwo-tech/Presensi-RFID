@@ -52,8 +52,8 @@ export const SupabaseSettings: React.FC<SupabaseSettingsProps> = ({ onNotify }) 
   const [diagnosticReport, setDiagnosticReport] = useState<DiagnosticReport | null>(null);
   const [isDiagnosing, setIsDiagnosing] = useState(false);
 
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xvhejxzczpbzmpkrbkkn.supabase.co';
-  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_z9QI0j-xF_SQCt0W5EIHWA_AWrWlCoi';
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://gxgafbsqsodcastwzoup.supabase.co';
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_fTp0miZULpQ1r7PppCCoeA_Wn_znN1D';
 
   const handleTestConnection = async () => {
     setStatus('checking');

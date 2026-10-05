@@ -25,7 +25,8 @@ import {
   ArrowRight,
   ArrowUpDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Printer
 } from 'lucide-react';
 
 interface StudentManagementProps {
@@ -59,6 +60,17 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({
   const [selectedClassFilter, setSelectedClassFilter] = useState('ALL');
   const [genderFilter, setGenderFilter] = useState<'ALL' | 'L' | 'P'>('ALL');
   const [sortBy, setSortBy] = useState<'name-asc' | 'name-desc' | 'nis-asc' | 'class-asc'>('name-asc');
+
+  // Print settings states
+  const [printType, setPrintType] = useState<'list' | 'cards'>('list');
+  const [docTitle, setDocTitle] = useState('DAFTAR DATA SISWA');
+  const [sigRole, setSigRole] = useState('Kepala Sekolah');
+  const [sigName, setSigName] = useState('H. Dadang Kusnandar, M.Pd.');
+  const [sigId, setSigId] = useState('NIP. 197408122002121003');
+  const [showNisn, setShowNisn] = useState(true);
+  const [showRfid, setShowRfid] = useState(true);
+  const [showParaf, setShowParaf] = useState(true);
+  const [cardTheme, setCardTheme] = useState<'blue' | 'emerald' | 'indigo'>('blue');
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -332,6 +344,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({
       !query ||
       s.name.toLowerCase().includes(query) ||
       s.nis.includes(query) ||
+      s.className.toLowerCase().includes(query) ||
       s.rfidUid.includes(query) ||
       s.qrCode.toLowerCase().includes(query);
 
@@ -375,6 +388,510 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({
     if (inspectionFilter === 'FAILED') return !r.isValid;
     return true;
   });
+
+  if (defaultOpenPrint) {
+    const activeClassObj = classes.find(c => c.id === selectedClassFilter);
+    const currentDateStr = new Date().toLocaleDateString('id-ID', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+
+    return (
+      <div className="space-y-6">
+        <style dangerouslySetInnerHTML={{ __html: `
+          @media print {
+            body {
+              background-color: white !important;
+              color: black !important;
+            }
+            /* Hide non-printable UI elements */
+            header, aside, .no-print, nav, button, select, input, .top-bar, .sidebar, .toast-container {
+              display: none !important;
+            }
+            #printable-area {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              background: white !important;
+              color: black !important;
+              padding: 0 !important;
+              margin: 0 !important;
+              box-shadow: none !important;
+              border: none !important;
+            }
+            .print-card-grid {
+              display: grid !important;
+              grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+              gap: 16px !important;
+            }
+            .break-inside-avoid {
+              break-inside: avoid !important;
+            }
+          }
+        `}} />
+
+        {/* PRINT DASHBOARD HEADER (no-print) */}
+        <div className="flex flex-wrap items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm no-print">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-200">
+              <Printer className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Cetak Data & Kartu Siswa</h2>
+              <p className="text-xs text-slate-500">
+                Pilih format cetak dan filter data siswa di bawah untuk dicetak langsung ke kertas / PDF.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Cetak Sekarang (Print / PDF)</span>
+            </button>
+          </div>
+        </div>
+
+        {/* PRINT CONFIGURATOR PANEL (no-print) */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 no-print">
+          {/* 1. FILTER & TARGET FORMAT */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4 col-span-1">
+            <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider pb-2 border-b border-slate-100">
+              1. Format & Filter Cetak
+            </h3>
+
+            {/* Print Type Toggle */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">Format Dokumen</label>
+              <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setPrintType('list')}
+                  className={`py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all ${
+                    printType === 'list'
+                      ? 'bg-white text-indigo-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>Daftar Siswa</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintType('cards')}
+                  className={`py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all ${
+                    printType === 'cards'
+                      ? 'bg-white text-indigo-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Kartu ID Pelajar</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Class Filter */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">Filter Kelas</label>
+              <select
+                value={selectedClassFilter}
+                onChange={(e) => setSelectedClassFilter(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 text-xs text-slate-800 rounded-xl px-3 py-2 font-semibold focus:border-indigo-600 focus:bg-white"
+              >
+                <option value="ALL">Semua Kelas ({students.length} Siswa)</option>
+                {[...classes].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })).map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Gender Filter */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">Filter Jenis Kelamin</label>
+              <select
+                value={genderFilter}
+                onChange={(e) => setGenderFilter(e.target.value as any)}
+                className="w-full bg-slate-50 border border-slate-200 text-xs text-slate-800 rounded-xl px-3 py-2 font-semibold focus:border-indigo-600 focus:bg-white"
+              >
+                <option value="ALL">Semua Jenis Kelamin</option>
+                <option value="L">Laki-laki (L)</option>
+                <option value="P">Perempuan (P)</option>
+              </select>
+            </div>
+
+            {/* Search query */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-slate-700">Cari Siswa Spesifik</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Nama, NIS, atau Kode..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-8 py-2 text-xs text-slate-900 focus:border-indigo-600 focus:bg-white transition-all"
+                />
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 2. LAYOUT & TEXT CUSTOMIZER */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4 col-span-2">
+            <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wider pb-2 border-b border-slate-100">
+              2. Kustomisasi Layout & Konten Dokumen
+            </h3>
+
+            {printType === 'list' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">Judul Dokumen (Header)</label>
+                    <input
+                      type="text"
+                      value={docTitle}
+                      onChange={(e) => setDocTitle(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">Jabatan Tanda Tangan</label>
+                    <input
+                      type="text"
+                      value={sigRole}
+                      onChange={(e) => setSigRole(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">Nama Penandatangan</label>
+                    <input
+                      type="text"
+                      value={sigName}
+                      onChange={(e) => setSigName(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-700">NIP / Identitas Pegawai</label>
+                    <input
+                      type="text"
+                      value={sigId}
+                      onChange={(e) => setSigId(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:border-indigo-600 focus:bg-white"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex flex-col justify-between">
+                  <div className="space-y-3">
+                    <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-widest block">
+                      Opsi Tampilan Tabel
+                    </span>
+
+                    <label className="flex items-center gap-2.5 text-xs text-slate-700 font-bold cursor-pointer hover:text-slate-900">
+                      <input
+                        type="checkbox"
+                        checked={showNisn}
+                        onChange={(e) => setShowNisn(e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                      />
+                      <span>Tampilkan Kolom NISN</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 text-xs text-slate-700 font-bold cursor-pointer hover:text-slate-900">
+                      <input
+                        type="checkbox"
+                        checked={showRfid}
+                        onChange={(e) => setShowRfid(e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                      />
+                      <span>Tampilkan Kolom UID RFID</span>
+                    </label>
+
+                    <label className="flex items-center gap-2.5 text-xs text-slate-700 font-bold cursor-pointer hover:text-slate-900">
+                      <input
+                        type="checkbox"
+                        checked={showParaf}
+                        onChange={(e) => setShowParaf(e.target.checked)}
+                        className="w-4 h-4 text-indigo-600 rounded border-slate-300"
+                      />
+                      <span>Sertakan Kolom Paraf / Tanda Tangan Siswa</span>
+                    </label>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200 text-[11px] text-slate-500 font-medium">
+                    Info: Untuk hasil terbaik saat mencetak, aktifkan opsi <strong>&ldquo;Background graphics&rdquo;</strong> di jendela dialog printer browser Anda.
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-widest block">
+                    Tema Warna Kartu
+                  </span>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCardTheme('blue')}
+                      className={`p-3 rounded-xl border text-xs font-bold text-center transition-all ${
+                        cardTheme === 'blue'
+                          ? 'bg-indigo-50 border-indigo-500 text-indigo-700 ring-2 ring-indigo-600/20'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="w-5 h-5 bg-indigo-600 rounded-full mx-auto mb-1.5" />
+                      Biru Klasik
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCardTheme('emerald')}
+                      className={`p-3 rounded-xl border text-xs font-bold text-center transition-all ${
+                        cardTheme === 'emerald'
+                          ? 'bg-emerald-50 border-emerald-500 text-emerald-700 ring-2 ring-emerald-600/20'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="w-5 h-5 bg-emerald-600 rounded-full mx-auto mb-1.5" />
+                      Hijau Emerald
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCardTheme('indigo')}
+                      className={`p-3 rounded-xl border text-xs font-bold text-center transition-all ${
+                        cardTheme === 'indigo'
+                          ? 'bg-slate-100 border-slate-800 text-slate-900 ring-2 ring-slate-850/20'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="w-5 h-5 bg-slate-800 rounded-full mx-auto mb-1.5" />
+                      Abu Modern
+                    </button>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex flex-col justify-between">
+                  <div className="text-xs text-slate-700 font-medium space-y-1.5">
+                    <span className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-widest block mb-1">
+                      Spesifikasi Kartu
+                    </span>
+                    <p>• Cetakan berisi QR Code yang valid untuk scan presensi</p>
+                    <p>• Mengandung string QR: <code className="bg-white px-1 py-0.5 border border-slate-200 rounded text-[11px] font-bold">SMAN1L-[NIS]</code></p>
+                    <p>• Cetakan dirancang pas untuk disisipkan ke casing card holder ukuran standar</p>
+                  </div>
+
+                  <div className="pt-4 border-t border-slate-200 text-[11px] text-slate-500 font-medium">
+                    Tip: Gunakan kertas tebal (Kertas foto, Buffalo, atau Cardstock) untuk mendapatkan kartu ID fisik yang kaku dan kuat.
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* MOCK PREVIEW PAPER FIELD */}
+        <div className="bg-slate-100 border border-slate-200 rounded-2xl p-4 lg:p-10 flex justify-center items-start shadow-inner overflow-x-auto">
+          {/* THE SIMULATED A4 PAPER WRAPPER */}
+          <div
+            id="printable-area"
+            className="w-full max-w-4xl bg-white p-8 lg:p-12 shadow-md border border-slate-250 min-h-[1120px] text-slate-900"
+          >
+            {printType === 'list' ? (
+              /* A. TABULAR STUDENT LIST FORMAT */
+              <div className="font-serif">
+                {/* Official Kop Surat */}
+                <div className="text-center space-y-1 pb-3 border-b-4 border-double border-slate-950 flex flex-col items-center justify-center">
+                  <h3 className="text-sm font-bold uppercase tracking-wider leading-tight text-slate-900">
+                    Pemerintah Provinsi Jawa Barat
+                  </h3>
+                  <h2 className="text-sm font-extrabold uppercase tracking-widest leading-tight text-slate-900">
+                    Dinas Pendidikan
+                  </h2>
+                  <h1 className="text-lg font-black uppercase tracking-tight text-slate-900">
+                    SMA NEGERI 1 LUMBUNG
+                  </h1>
+                  <p className="text-[10px] font-sans font-medium text-slate-600">
+                    Jl. Raya Lumbung No. 12, Kec. Lumbung, Kab. Ciamis 46258 • Telp: (0265) 771234 • Email: sman1lumbung@sch.id
+                  </p>
+                </div>
+
+                {/* Document Title */}
+                <div className="my-6 text-center">
+                  <h2 className="text-base font-bold uppercase underline tracking-wide text-slate-950">
+                    {docTitle || 'DAFTAR DATA SISWA'}
+                  </h2>
+                  <p className="text-xs uppercase font-extrabold text-slate-900 mt-1 font-sans">
+                    Kelas: {activeClassObj ? activeClassObj.name : 'SEMUA KELAS'} • TAHUN AJARAN 2026/2027
+                  </p>
+                </div>
+
+                {/* Table Sheet */}
+                <table className="w-full border-collapse border border-slate-900 text-[11px] font-sans">
+                  <thead>
+                    <tr className="bg-slate-100 border border-slate-900 font-extrabold uppercase text-center text-slate-900">
+                      <th className="border border-slate-900 py-2 px-1 w-8">No</th>
+                      <th className="border border-slate-900 py-2 px-2 w-20">NIS</th>
+                      {showNisn && <th className="border border-slate-900 py-2 px-2 w-24">NISN</th>}
+                      <th className="border border-slate-900 py-2 px-3">Nama Lengkap Siswa</th>
+                      <th className="border border-slate-900 py-2 px-1 w-10">L/P</th>
+                      <th className="border border-slate-900 py-2 px-16">Kelas</th>
+                      {showRfid && <th className="border border-slate-900 py-2 px-3 w-28">UID RFID</th>}
+                      {showParaf && <th className="border border-slate-900 py-2 px-3 w-28 text-center">Paraf</th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-400">
+                    {sortedStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={showNisn && showRfid && showParaf ? 8 : 5} className="py-8 text-center text-slate-400 italic">
+                          Tidak ada data siswa yang cocok dengan filter / pencarian.
+                        </td>
+                      </tr>
+                    ) : (
+                      sortedStudents.map((s, idx) => (
+                        <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="border border-slate-900 py-1.5 px-1 text-center font-mono">{idx + 1}</td>
+                          <td className="border border-slate-900 py-1.5 px-2 text-center font-mono font-bold text-slate-900">{s.nis}</td>
+                          {showNisn && <td className="border border-slate-900 py-1.5 px-2 text-center font-mono text-slate-600">{s.nisn || '-'}</td>}
+                          <td className="border border-slate-900 py-1.5 px-3 text-slate-950 font-bold uppercase">{s.name}</td>
+                          <td className="border border-slate-900 py-1.5 px-1 text-center">{s.gender}</td>
+                          <td className="border border-slate-900 py-1.5 px-2 text-center font-semibold text-slate-700">{s.className}</td>
+                          {showRfid && <td className="border border-slate-900 py-1.5 px-3 text-center font-mono text-slate-600 text-[10px]">{s.rfidUid || '-'}</td>}
+                          {showParaf && (
+                            <td className="border border-slate-900 py-1.5 px-2 font-mono text-slate-400">
+                              <span className="text-[8px] font-sans font-bold float-left text-slate-400 select-none mr-2">
+                                {idx + 1}.
+                              </span>
+                              <span className={idx % 2 === 0 ? "ml-1 block" : "mr-4 text-right block"}>
+                                .........................
+                              </span>
+                            </td>
+                          )}
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+
+                {/* Footer Signature Section */}
+                <div className="mt-12 flex justify-end font-sans">
+                  <div className="w-64 space-y-16 text-center text-xs text-slate-900">
+                    <div>
+                      <p>Ciamis, {currentDateStr}</p>
+                      <p className="font-bold uppercase mt-0.5">{sigRole || 'Kepala Sekolah'}</p>
+                    </div>
+
+                    <div>
+                      <p className="font-bold uppercase underline tracking-tight">{sigName || 'NAMA PEJABAT'}</p>
+                      <p className="text-[10px] text-slate-600 font-mono mt-0.5">{sigId || 'NIP.----------------'}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* B. CARD GRID ID CARDS FORMAT */
+              <div className="font-sans">
+                {/* Header Metadata (Preview-Only) */}
+                <div className="border-b border-slate-200 pb-2 mb-4 text-center text-[11px] text-slate-400 font-bold tracking-widest uppercase no-print">
+                  PREVIEW HALAMAN KARTU IDENTITAS PRESENSI ({sortedStudents.length} KARTU)
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print-card-grid">
+                  {sortedStudents.map((s) => (
+                    <div
+                      key={s.id}
+                      className={`border-2 rounded-xl p-4 flex flex-col justify-between h-[230px] relative overflow-hidden break-inside-avoid shadow-inner text-white ${
+                        cardTheme === 'emerald'
+                          ? 'bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-950 border-emerald-400'
+                          : cardTheme === 'indigo'
+                          ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-950 border-slate-500'
+                          : 'bg-gradient-to-br from-indigo-900 via-indigo-800 to-indigo-950 border-indigo-400'
+                      }`}
+                    >
+                      {/* Card Header Letterhead */}
+                      <div className="flex items-center gap-1.5 border-b border-white/20 pb-2 shrink-0">
+                        <School className="w-5 h-5 text-indigo-300 shrink-0" />
+                        <div>
+                          <h4 className="text-[10px] font-black tracking-wider uppercase">SMAN 1 LUMBUNG</h4>
+                          <p className="text-[7px] text-indigo-200 font-bold uppercase leading-tight tracking-widest">
+                            Kartu Presensi Siswa Resmi
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Card Body */}
+                      <div className="flex items-center gap-3 my-2 flex-1 min-w-0">
+                        {/* Left avatar badge */}
+                        <div className="w-14 h-14 rounded-full bg-white text-slate-800 border-2 border-indigo-200 flex items-center justify-center font-black text-xl shadow-inner shrink-0 select-none">
+                          {s.name.charAt(0)}
+                        </div>
+
+                        {/* Middle information details */}
+                        <div className="flex-1 min-w-0 space-y-0.5">
+                          <h3 className="text-xs font-black tracking-tight leading-tight truncate uppercase">
+                            {s.name}
+                          </h3>
+                          <div className="text-[9px] font-mono text-indigo-200">
+                            NIS: <strong className="text-white">{s.nis}</strong>
+                          </div>
+                          {s.nisn && (
+                            <div className="text-[9px] font-mono text-indigo-200">
+                              NISN: <strong className="text-white">{s.nisn}</strong>
+                            </div>
+                          )}
+                          <div className="text-[9px] font-bold">
+                            Kelas: <span className="bg-white/10 px-1.5 py-0.2 rounded border border-white/20">{s.className}</span>
+                          </div>
+                        </div>
+
+                        {/* Right interactive barcode visual placeholder */}
+                        <div className="bg-white p-1 rounded-lg shadow-sm shrink-0">
+                          <div className="w-14 h-14 bg-slate-900 rounded p-1 flex flex-col items-center justify-center">
+                            <QrCode className="w-10 h-10 text-white" />
+                            <span className="text-[5px] font-mono font-bold text-indigo-300 mt-0.5 truncate max-w-[50px]">
+                              {s.qrCode}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Footer */}
+                      <div className="pt-1.5 border-t border-white/10 flex justify-between items-center shrink-0">
+                        <span className="text-[7px] text-indigo-200 font-mono">
+                          RFID: <strong className="text-white">{s.rfidUid}</strong>
+                        </span>
+                        <span className="text-[6px] text-indigo-300 font-bold tracking-widest uppercase">
+                          SISTEM ABSENSI SMART CARD
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

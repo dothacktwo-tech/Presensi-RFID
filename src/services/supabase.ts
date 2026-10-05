@@ -1,10 +1,119 @@
 import { createClient } from '@supabase/supabase-js';
-import { StorageService } from './storage';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xvhejxzczpbzmpkrbkkn.supabase.co';
-const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_z9QI0j-xF_SQCt0W5EIHWA_AWrWlCoi';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://gxgafbsqsodcastwzoup.supabase.co';
+const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_fTp0miZULpQ1r7PppCCoeA_Wn_znN1D';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Circular dependency break: use local storage getters instead of StorageService
+const getLocalSettings = () => {
+  const data = localStorage.getItem('sman1_lumbung_settings');
+  return data ? JSON.parse(data) : {
+    schoolName: 'SMAN 1 Lumbung',
+    npsn: '20211543',
+    address: 'Jl. Raya Lumbung No. 45, Kec. Lumbung, Kab. Ciamis, Jawa Barat 46258',
+    headmasterName: 'Drs. H. Mulyana, M.Pd.',
+    headmasterNip: '19680512 199403 1 004',
+    entryTimeLimit: '07:00',
+    exitTimeLimit: '15:30',
+    lateToleranceMinutes: 5,
+    soundEnabled: true,
+    autoMarkAlpaTime: '10:00',
+    autoLockEnabled: true
+  };
+};
+
+const getLocalClasses = () => {
+  const data = localStorage.getItem('sman1_lumbung_classes');
+  return data ? JSON.parse(data) : [];
+};
+
+const getLocalUsers = () => {
+  const data = localStorage.getItem('sman1_lumbung_users');
+  return data ? JSON.parse(data) : [];
+};
+
+const getLocalStudents = () => {
+  const data = localStorage.getItem('sman1_lumbung_students');
+  return data ? JSON.parse(data) : [];
+};
+
+const getLocalAttendances = () => {
+  const data = localStorage.getItem('sman1_lumbung_attendances');
+  return data ? JSON.parse(data) : [];
+};
+
+const getLocalRolePermissions = () => {
+  const data = localStorage.getItem('sman1_lumbung_role_permissions');
+  return data ? JSON.parse(data) : {
+    admin: {
+      dashboard: true,
+      classes: true,
+      students: true,
+      'students-print': true,
+      'attendance-check': true,
+      'manual-input': true,
+      'attendance-history': true,
+      scanner: true,
+      reports: true,
+      'reports-rekap': true,
+      'reports-pdf': true,
+      'reports-excel': true,
+      users: true,
+      'sidebar-settings': true,
+      'school-settings': true,
+      'supabase-settings': true
+    },
+    guru_piket: {
+      dashboard: true,
+      classes: false,
+      students: true,
+      'students-print': false,
+      'attendance-check': true,
+      'manual-input': true,
+      'attendance-history': true,
+      scanner: true,
+      reports: true,
+      'reports-rekap': true,
+      'reports-pdf': true,
+      'reports-excel': true,
+      users: false,
+      'sidebar-settings': true,
+      'school-settings': false,
+      'supabase-settings': false
+    },
+    wali_kelas: {
+      dashboard: true,
+      classes: false,
+      students: false,
+      'students-print': false,
+      'attendance-check': true,
+      'manual-input': false,
+      'attendance-history': true,
+      scanner: false,
+      reports: true,
+      'reports-rekap': true,
+      'reports-pdf': true,
+      'reports-excel': true,
+      users: false,
+      'sidebar-settings': true,
+      'school-settings': false,
+      'supabase-settings': false
+    }
+  };
+};
+
+const getLocalLockedDates = () => {
+  const data = localStorage.getItem('sman1_lumbung_locked_dates');
+  return data ? JSON.parse(data) : [];
+};
+
+const notifyLocalDataChanged = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('sman1_data_updated'));
+  }
+};
+
 
 export const SUPABASE_SQL_SCRIPT = `-- ==============================================================================
 -- SQL DDL SCHEMA, MIGRATION & SEED DATA UNTUK SMAN 1 LUMBUNG ABSENSI SISWA
@@ -350,7 +459,7 @@ export async function syncLocalToSupabase(): Promise<{ success: boolean; syncedC
 
   try {
     // 1. Sync Settings
-    const localSettings = StorageService.getSettings();
+    const localSettings = getLocalSettings();
     const { error: errSettings } = await supabase.from('settings').upsert({
       id: 'school_config',
       school_name: localSettings.schoolName,
@@ -370,9 +479,9 @@ export async function syncLocalToSupabase(): Promise<{ success: boolean; syncedC
     else synced++;
 
     // 2. Sync Classes
-    const localClasses = StorageService.getClasses();
+    const localClasses = getLocalClasses();
     if (localClasses.length > 0) {
-      const formattedClasses = localClasses.map(c => ({
+      const formattedClasses = localClasses.map((c: any) => ({
         id: c.id,
         name: c.name,
         grade: c.grade,
@@ -387,9 +496,9 @@ export async function syncLocalToSupabase(): Promise<{ success: boolean; syncedC
     }
 
     // 3. Sync Users
-    const localUsers = StorageService.getUsers();
+    const localUsers = getLocalUsers();
     if (localUsers.length > 0) {
-      const formattedUsers = localUsers.map(u => ({
+      const formattedUsers = localUsers.map((u: any) => ({
         id: u.id,
         username: u.username,
         password_hash: u.passwordHash || null,
@@ -406,9 +515,9 @@ export async function syncLocalToSupabase(): Promise<{ success: boolean; syncedC
     }
 
     // 4. Sync Students
-    const localStudents = StorageService.getStudents();
+    const localStudents = getLocalStudents();
     if (localStudents.length > 0) {
-      const formattedStudents = localStudents.map(s => ({
+      const formattedStudents = localStudents.map((s: any) => ({
         id: s.id,
         nis: s.nis,
         nisn: s.nisn || null,
@@ -428,9 +537,9 @@ export async function syncLocalToSupabase(): Promise<{ success: boolean; syncedC
     }
 
     // 5. Sync Attendances
-    const localAttendances = StorageService.getAttendances();
+    const localAttendances = getLocalAttendances();
     if (localAttendances.length > 0) {
-      const formattedAttendances = localAttendances.map(a => ({
+      const formattedAttendances = localAttendances.map((a: any) => ({
         id: a.id,
         student_id: a.studentId,
         nis: a.nis,
@@ -451,7 +560,7 @@ export async function syncLocalToSupabase(): Promise<{ success: boolean; syncedC
     }
 
     // 6. Sync Role Permissions
-    const localPermissions = StorageService.getRolePermissions();
+    const localPermissions = getLocalRolePermissions();
     if (localPermissions) {
       const formattedPerms = [
         { role: 'admin', permissions_json: localPermissions.admin },
@@ -464,9 +573,9 @@ export async function syncLocalToSupabase(): Promise<{ success: boolean; syncedC
     }
 
     // 7. Sync Locked Dates
-    const localLockedDates = StorageService.getLockedDates();
+    const localLockedDates = getLocalLockedDates();
     if (localLockedDates.length > 0) {
-      const formattedLocked = localLockedDates.map(d => ({
+      const formattedLocked = localLockedDates.map((d: any) => ({
         date: d,
         is_locked: true,
         locked_by: 'Admin / System'
@@ -596,7 +705,7 @@ export async function pullFromSupabase(): Promise<{ success: boolean; pulledCoun
     // 6. Fetch role_permissions
     const { data: dbPerms } = await supabase.from('role_permissions').select('*');
     if (dbPerms && Array.isArray(dbPerms) && dbPerms.length > 0) {
-      const permObj: any = StorageService.getRolePermissions();
+      const permObj: any = getLocalRolePermissions();
       dbPerms.forEach((p: any) => {
         if (p.role && p.permissions_json) {
           permObj[p.role] = p.permissions_json;
@@ -614,7 +723,7 @@ export async function pullFromSupabase(): Promise<{ success: boolean; pulledCoun
       count += dbLocked.length;
     }
 
-    StorageService.notifyDataChanged();
+    notifyLocalDataChanged();
     return {
       success: true,
       pulledCount: count,
@@ -638,9 +747,18 @@ export async function deleteRecordFromSupabase(tableName: 'students' | 'users' |
   }
 }
 
-export async function syncStudentToSupabase(s: any): Promise<void> {
+export async function syncStudentToSupabase(s: any): Promise<{ success: boolean; error?: string }> {
   try {
-    await supabase.from('students').upsert({
+    // 1. DEFENSIVE FK CASCADE: Ensure the referenced class exists in Supabase first
+    if (s.classId) {
+      const localClasses = getLocalClasses();
+      const matchedClass = localClasses.find((c: any) => c.id === s.classId);
+      if (matchedClass) {
+        await syncClassToSupabase(matchedClass);
+      }
+    }
+
+    const { error } = await supabase.from('students').upsert({
       id: s.id,
       nis: s.nis,
       nisn: s.nisn || null,
@@ -654,14 +772,20 @@ export async function syncStudentToSupabase(s: any): Promise<void> {
       address: s.address || null,
       status: s.status
     });
-  } catch (e) {
+    if (error) {
+      console.warn('Supabase student sync error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (e: any) {
     console.warn('Supabase student sync error:', e);
+    return { success: false, error: e?.message || String(e) };
   }
 }
 
-export async function syncClassToSupabase(c: any): Promise<void> {
+export async function syncClassToSupabase(c: any): Promise<{ success: boolean; error?: string }> {
   try {
-    await supabase.from('classes').upsert({
+    const { error } = await supabase.from('classes').upsert({
       id: c.id,
       name: c.name,
       grade: c.grade,
@@ -670,14 +794,29 @@ export async function syncClassToSupabase(c: any): Promise<void> {
       wali_kelas_name: c.waliKelasName || null,
       academic_year: c.academicYear || '2025/2026'
     });
-  } catch (e) {
+    if (error) {
+      console.warn('Supabase class sync error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (e: any) {
     console.warn('Supabase class sync error:', e);
+    return { success: false, error: e?.message || String(e) };
   }
 }
 
-export async function syncUserToSupabase(u: any): Promise<void> {
+export async function syncUserToSupabase(u: any): Promise<{ success: boolean; error?: string }> {
   try {
-    await supabase.from('users').upsert({
+    // 2. DEFENSIVE FK CASCADE: Ensure referenced class exists in Supabase first
+    if (u.assignedClassId) {
+      const localClasses = getLocalClasses();
+      const matchedClass = localClasses.find((c: any) => c.id === u.assignedClassId);
+      if (matchedClass) {
+        await syncClassToSupabase(matchedClass);
+      }
+    }
+
+    const { error } = await supabase.from('users').upsert({
       id: u.id,
       username: u.username,
       password_hash: u.passwordHash || null,
@@ -688,8 +827,14 @@ export async function syncUserToSupabase(u: any): Promise<void> {
       assigned_class_name: u.assignedClassName || null,
       nip: u.nip || null
     });
-  } catch (e) {
+    if (error) {
+      console.warn('Supabase user sync error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (e: any) {
     console.warn('Supabase user sync error:', e);
+    return { success: false, error: e?.message || String(e) };
   }
 }
 
@@ -784,9 +929,18 @@ export async function fetchSettingsFromSupabase(): Promise<any | null> {
   }
 }
 
-export async function syncAttendanceToSupabase(a: any): Promise<void> {
+export async function syncAttendanceToSupabase(a: any): Promise<{ success: boolean; error?: string }> {
   try {
-    await supabase.from('attendances').upsert({
+    // DEFENSIVE FK CASCADE: Ensure referenced student exists in Supabase first
+    if (a.studentId) {
+      const localStudents = getLocalStudents();
+      const matchedStudent = localStudents.find((s: any) => s.id === a.studentId);
+      if (matchedStudent) {
+        await syncStudentToSupabase(matchedStudent);
+      }
+    }
+
+    const { error } = await supabase.from('attendances').upsert({
       id: a.id,
       student_id: a.studentId,
       nis: a.nis,
@@ -801,8 +955,14 @@ export async function syncAttendanceToSupabase(a: any): Promise<void> {
       notes: a.notes || null,
       scanned_by: a.scannedBy || 'System'
     });
-  } catch (e) {
+    if (error) {
+      console.warn('Supabase attendance sync error:', error.message);
+      return { success: false, error: error.message };
+    }
+    return { success: true };
+  } catch (e: any) {
     console.warn('Supabase attendance sync error:', e);
+    return { success: false, error: e?.message || String(e) };
   }
 }
 
@@ -844,10 +1004,10 @@ export async function runStateAndDatabaseDiagnostic(): Promise<DiagnosticReport>
   const now = new Date().toISOString();
 
   // 1. Inspect Local State
-  const localStudents = StorageService.getStudents();
-  const localClasses = StorageService.getClasses();
-  const localAttendances = StorageService.getAttendances();
-  const localUsers = StorageService.getUsers();
+  const localStudents = getLocalStudents();
+  const localClasses = getLocalClasses();
+  const localAttendances = getLocalAttendances();
+  const localUsers = getLocalUsers();
 
   console.log('%c[1] LOCAL STORAGE STATE:', 'color: #6366f1; font-weight: bold;', {
     studentsCount: localStudents.length,
@@ -857,7 +1017,7 @@ export async function runStateAndDatabaseDiagnostic(): Promise<DiagnosticReport>
   });
 
   if (localStudents.length > 0) {
-    console.table(localStudents.map(s => ({ ID: s.id, NIS: s.nis, Nama: s.name, Kelas: s.className, Status: s.status })));
+    console.table(localStudents.map((s: any) => ({ ID: s.id, NIS: s.nis, Nama: s.name, Kelas: s.className, Status: s.status })));
   }
 
   // 2. Query Remote Supabase Database Records
@@ -897,24 +1057,24 @@ export async function runStateAndDatabaseDiagnostic(): Promise<DiagnosticReport>
   });
 
   // 3. Cross-Reference Analysis
-  const remoteStudentIds = new Set(remoteStudents.map(s => s.id));
-  const remoteAttendanceIds = new Set(remoteAttendances.map(a => a.id));
-  const localStudentIds = new Set(localStudents.map(s => s.id));
+  const remoteStudentIds = new Set(remoteStudents.map((s: any) => s.id));
+  const remoteAttendanceIds = new Set(remoteAttendances.map((a: any) => a.id));
+  const localStudentIds = new Set(localStudents.map((s: any) => s.id));
 
   // Ghost Students: Students in LocalStorage that do NOT exist in Supabase
   const ghostStudentsInLocal = dbConnected
-    ? localStudents.filter(s => !remoteStudentIds.has(s.id)).map(s => `${s.name} (${s.id})`)
+    ? localStudents.filter((s: any) => !remoteStudentIds.has(s.id)).map((s: any) => `${s.name} (${s.id})`)
     : [];
 
   // Ghost Attendances: Attendance in LocalStorage that do NOT exist in Supabase
   const ghostAttendancesInLocal = dbConnected
-    ? localAttendances.filter(a => !remoteAttendanceIds.has(a.id)).map(a => `${a.studentName} - ${a.date} (${a.id})`)
+    ? localAttendances.filter((a: any) => !remoteAttendanceIds.has(a.id)).map((a: any) => `${a.studentName} - ${a.date} (${a.id})`)
     : [];
 
   // Orphan Attendances: Attendance in LocalStorage that reference student IDs missing from both local & cloud
   const orphanAttendancesInLocal = localAttendances
-    ? localAttendances.filter(a => !localStudentIds.has(a.studentId) && (!dbConnected || !remoteStudentIds.has(a.studentId)))
-        .map(a => `${a.studentName} [Orphan StudentID: ${a.studentId}] (${a.id})`)
+    ? localAttendances.filter((a: any) => !localStudentIds.has(a.studentId) && (!dbConnected || !remoteStudentIds.has(a.studentId)))
+        .map((a: any) => `${a.studentName} [Orphan StudentID: ${a.studentId}] (${a.id})`)
     : [];
 
   const mismatchedStudentCounts = localStudents.length !== remoteStudents.length;
@@ -949,8 +1109,8 @@ export async function runStateAndDatabaseDiagnostic(): Promise<DiagnosticReport>
       classesCount: localClasses.length,
       attendancesCount: localAttendances.length,
       usersCount: localUsers.length,
-      studentsList: localStudents.map(s => ({ id: s.id, name: s.name, nis: s.nis, classId: s.classId, status: s.status })),
-      attendancesList: localAttendances.map(a => ({ id: a.id, studentId: a.studentId, studentName: a.studentName, date: a.date, status: a.status }))
+      studentsList: localStudents.map((s: any) => ({ id: s.id, name: s.name, nis: s.nis, classId: s.classId, status: s.status })),
+      attendancesList: localAttendances.map((a: any) => ({ id: a.id, studentId: a.studentId, studentName: a.studentName, date: a.date, status: a.status }))
     },
     remoteDatabase: {
       connected: dbConnected,
@@ -984,7 +1144,7 @@ export async function purgeGhostRecords(): Promise<{ success: boolean; purgedStu
       // If cloud is not connected, purge all local mock students & attendances to clean state
       localStorage.setItem('sman1_lumbung_students', JSON.stringify([]));
       localStorage.setItem('sman1_lumbung_attendances', JSON.stringify([]));
-      StorageService.notifyDataChanged();
+      notifyLocalDataChanged();
       return {
         success: true,
         purgedStudentsCount: diagnostic.localState.studentsCount,
@@ -997,17 +1157,17 @@ export async function purgeGhostRecords(): Promise<{ success: boolean; purgedStu
     const remoteStudentIds = new Set(diagnostic.remoteDatabase.studentsList.map((s: any) => s.id));
     const remoteAttendanceIds = new Set(diagnostic.remoteDatabase.attendancesList.map((a: any) => a.id));
 
-    const currentLocalStudents = StorageService.getStudents();
-    const cleanStudents = currentLocalStudents.filter(s => remoteStudentIds.has(s.id));
+    const currentLocalStudents = getLocalStudents();
+    const cleanStudents = currentLocalStudents.filter((s: any) => remoteStudentIds.has(s.id));
     purgedStudentsCount = currentLocalStudents.length - cleanStudents.length;
 
-    const currentLocalAttendances = StorageService.getAttendances();
-    const cleanAttendances = currentLocalAttendances.filter(a => remoteAttendanceIds.has(a.id) && remoteStudentIds.has(a.studentId));
+    const currentLocalAttendances = getLocalAttendances();
+    const cleanAttendances = currentLocalAttendances.filter((a: any) => remoteAttendanceIds.has(a.id) && remoteStudentIds.has(a.studentId));
     purgedAttendancesCount = currentLocalAttendances.length - cleanAttendances.length;
 
     localStorage.setItem('sman1_lumbung_students', JSON.stringify(cleanStudents));
     localStorage.setItem('sman1_lumbung_attendances', JSON.stringify(cleanAttendances));
-    StorageService.notifyDataChanged();
+    notifyLocalDataChanged();
 
     return {
       success: true,

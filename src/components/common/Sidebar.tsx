@@ -325,115 +325,84 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <>
               <p className={menuGroupClass}>KEHADIRAN</p>
 
-              {/* Absensi Accordion */}
-              <div>
+              {/* standalone: Menu Absensi */}
+              {isAllowed('attendance-check') && (
                 <button
-                  onClick={() => toggleAccordion('absensi')}
-                  title="Absensi"
-                  className={`group w-full flex items-center justify-between rounded-xl text-xs font-semibold transition-all duration-150 ${
+                  onClick={() => handleTabClick('attendance-check')}
+                  title="Menu Absensi"
+                  className={`group w-full flex items-center gap-3 rounded-xl text-xs font-semibold transition-all duration-150 ${
                     isMinimalist ? 'justify-center p-2.5' : 'px-3 py-2.5'
                   } ${
-                    ['attendance-check', 'attendance-today', 'manual-input', 'attendance-history', 'scanner'].includes(activeTab)
-                      ? 'bg-slate-50 text-indigo-700 font-bold'
+                    ['attendance-check', 'attendance-today', 'manual-input'].includes(activeTab)
+                      ? 'bg-indigo-50 text-indigo-700 font-bold border-l-3 border-indigo-600 shadow-2xs'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <UserCheck
-                      className={`w-4 h-4 shrink-0 transition-colors ${
-                        ['attendance-check', 'attendance-today', 'manual-input', 'attendance-history', 'scanner'].includes(activeTab)
-                          ? 'text-emerald-600'
-                          : 'text-slate-400 group-hover:text-emerald-600'
-                      }`}
-                    />
-                    {!isMinimalist && <span>Absensi</span>}
-                  </div>
-                  {!isMinimalist && (
-                    <ChevronRight
-                      className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-                        openAccordions.absensi ? 'rotate-90 text-indigo-600' : ''
-                      }`}
-                    />
-                  )}
+                  <UserCheck
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      ['attendance-check', 'attendance-today', 'manual-input'].includes(activeTab)
+                        ? 'text-indigo-600'
+                        : 'text-slate-400 group-hover:text-indigo-600'
+                    }`}
+                  />
+                  {!isMinimalist && <span>Menu Absensi</span>}
                 </button>
+              )}
 
-                {/* Submenu Accordion Absensi */}
-                {!isMinimalist && openAccordions.absensi && (
-                  <div className="mt-1 ml-4 pl-3 border-l border-slate-200/70 space-y-0.5 py-0.5">
-                    {isAllowed('attendance-check') && (
-                      <button
-                        onClick={() => handleTabClick('attendance-check')}
-                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
-                          activeTab === 'attendance-check' || activeTab === 'attendance-today'
-                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
-                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                        }`}
-                      >
-                        <Calendar className="w-3.5 h-3.5 shrink-0" />
-                        <span>Absensi Hari Ini</span>
-                      </button>
-                    )}
+              {/* standalone: Menu Riwayat Absensi */}
+              {isAllowed('attendance-history') && (
+                <button
+                  onClick={() => handleTabClick('attendance-history')}
+                  title="Menu Riwayat Absensi"
+                  className={`group w-full flex items-center gap-3 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                    isMinimalist ? 'justify-center p-2.5' : 'px-3 py-2.5'
+                  } ${
+                    activeTab === 'attendance-history'
+                      ? 'bg-indigo-50 text-indigo-700 font-bold border-l-3 border-indigo-600 shadow-2xs'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <Clock
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      activeTab === 'attendance-history'
+                        ? 'text-indigo-600'
+                        : 'text-slate-400 group-hover:text-indigo-600'
+                    }`}
+                  />
+                  {!isMinimalist && <span>Menu Riwayat Absensi</span>}
+                </button>
+              )}
 
-                    {isAllowed('manual-input') && (
-                      <button
-                        onClick={() => handleTabClick('manual-input')}
-                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
-                          activeTab === 'manual-input'
-                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
-                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                        }`}
-                      >
-                        <UserCheck className="w-3.5 h-3.5 shrink-0" />
-                        <span>Absensi Manual</span>
-                      </button>
-                    )}
+              {/* Only show Kiosk Mode & RFID Input to Guru Piket who are NOT Admin */}
+              {isAllowed('scanner') && isGuruPiket && !isAdmin && (
+                <div className="mt-1.5 pt-1.5 border-t border-slate-100 space-y-1">
+                  <button
+                    onClick={() => {
+                      onOpenKiosk();
+                      if (setIsMobileOpen) setIsMobileOpen(false);
+                    }}
+                    className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 transition-all duration-150 shadow-2xs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <QrCode className="w-3.5 h-3.5 text-emerald-600 animate-pulse shrink-0" />
+                      <span>Kiosk Scan Mode</span>
+                    </div>
+                    <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-mono font-bold tracking-tight">LIVE</span>
+                  </button>
 
-                    {isAllowed('attendance-history') && (
-                      <button
-                        onClick={() => handleTabClick('attendance-history')}
-                        className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
-                          activeTab === 'attendance-history'
-                            ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
-                            : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                        }`}
-                      >
-                        <Clock className="w-3.5 h-3.5 shrink-0" />
-                        <span>Riwayat Absensi</span>
-                      </button>
-                    )}
-
-                    {isAllowed('scanner') && isGuruPiket && (
-                      <>
-                        <button
-                          onClick={() => {
-                            onOpenKiosk();
-                            if (setIsMobileOpen) setIsMobileOpen(false);
-                          }}
-                          className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100/80 border border-emerald-200/80 transition-all duration-150 mt-1 shadow-2xs"
-                        >
-                          <div className="flex items-center gap-2">
-                            <QrCode className="w-3.5 h-3.5 text-emerald-600 animate-pulse shrink-0" />
-                            <span>Kiosk Scan Mode</span>
-                          </div>
-                          <span className="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded font-mono font-bold tracking-tight">LIVE</span>
-                        </button>
-
-                        <button
-                          onClick={() => handleTabClick('scanner')}
-                          className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
-                            activeTab === 'scanner'
-                              ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
-                              : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
-                          }`}
-                        >
-                          <Clock className="w-3.5 h-3.5 shrink-0" />
-                          <span>Input Scan RFID / QR</span>
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
+                  <button
+                    onClick={() => handleTabClick('scanner')}
+                    className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs font-medium transition-all duration-150 ${
+                      activeTab === 'scanner'
+                        ? 'bg-indigo-600 text-white font-semibold shadow-2xs'
+                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                    }`}
+                  >
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span>Input Scan RFID / QR</span>
+                  </button>
+                </div>
+              )}
             </>
           )}
 
