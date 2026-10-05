@@ -1,6 +1,6 @@
 import React from 'react';
 import { StudentClass, AttendanceRecord, Student } from '../../types';
-import { BarChart3, TrendingUp } from 'lucide-react';
+import { BarChart3, TrendingUp, ChevronRight } from 'lucide-react';
 
 interface AttendanceChartProps {
   classes: StudentClass[];
@@ -32,6 +32,18 @@ export const AttendanceChart: React.FC<AttendanceChartProps> = ({ classes, atten
     };
   });
 
+  const groupedData: any = {};
+  for (const cd of classData) {
+    const generation = cd.className.split(" ")[0];
+    if (!groupedData[generation]) groupedData[generation] = [];
+    groupedData[generation].push(cd);
+  }
+
+  const [expandedGenerations, setExpandedGenerations] = React.useState<Record<string, boolean>>({});
+  const toggleGeneration = (gen: string) => {
+    setExpandedGenerations(prev => ({ ...prev, [gen]: !prev[gen] }));
+  };
+
   return (
     <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
       <div className="flex items-center justify-between mb-6">
@@ -52,30 +64,43 @@ export const AttendanceChart: React.FC<AttendanceChartProps> = ({ classes, atten
       </div>
 
       <div className="space-y-4">
-        {classData.map((cd) => (
-          <div key={cd.className} className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-900">{cd.className}</span>
-              <span className="font-mono text-slate-600">
-                <strong className="text-emerald-600">{cd.totalPresent}</strong> / {cd.total} Siswa ({cd.percentage}%)
-              </span>
-            </div>
+        {Object.entries(groupedData).map(([gen, classes]) => (
+          <div key={gen} className="border border-slate-100 rounded-xl overflow-hidden">
+            <button
+              onClick={() => toggleGeneration(gen)}
+              className="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 transition-colors text-xs font-bold text-slate-900"
+            >
+              <span>Angkatan {gen}</span>
+              <ChevronRight className={`w-4 h-4 transition-transform ${expandedGenerations[gen] ? 'rotate-90' : ''}`} />
+            </button>
+            {expandedGenerations[gen] && (
+              <div className="p-3 space-y-4">
+                {(classes as any[]).map((cd) => (
+                  <div key={cd.className} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-900">{cd.className}</span>
+                      <span className="font-mono text-slate-600">
+                        <strong className="text-emerald-600">{cd.totalPresent}</strong> / {cd.total} Siswa ({cd.percentage}%)
+                      </span>
+                    </div>
 
-            {/* Stacked Progress Bar */}
-            <div className="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden flex border border-slate-200">
-              {/* Hadir Tepat Waktu (Green) */}
-              <div
-                style={{ width: `${(cd.hadirCount / cd.total) * 100}%` }}
-                className="bg-emerald-500 h-full transition-all duration-500"
-                title={`Hadir: ${cd.hadirCount}`}
-              ></div>
-              {/* Terlambat (Amber) */}
-              <div
-                style={{ width: `${(cd.terlambatCount / cd.total) * 100}%` }}
-                className="bg-amber-500 h-full transition-all duration-500"
-                title={`Terlambat: ${cd.terlambatCount}`}
-              ></div>
-            </div>
+                    {/* Stacked Progress Bar */}
+                    <div className="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden flex border border-slate-200">
+                      <div
+                        style={{ width: `${(cd.hadirCount / cd.total) * 100}%` }}
+                        className="bg-emerald-500 h-full transition-all duration-500"
+                        title={`Hadir: ${cd.hadirCount}`}
+                      ></div>
+                      <div
+                        style={{ width: `${(cd.terlambatCount / cd.total) * 100}%` }}
+                        className="bg-amber-500 h-full transition-all duration-500"
+                        title={`Terlambat: ${cd.terlambatCount}`}
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>

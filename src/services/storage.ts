@@ -284,6 +284,19 @@ export class StorageService {
     );
   }
 
+  static generateQrToken(studentId: string): string {
+    const students = this.getStudents();
+    const student = students.find(s => s.id === studentId);
+    if (!student) return '';
+
+    // Generate opaque token
+    const token = `SMAN1L-${Math.random().toString(36).substr(2, 10).toUpperCase()}-${Date.now().toString(36)}`;
+    student.qrCode = token;
+    
+    this.saveStudent(student);
+    return token;
+  }
+
   static saveStudent(student: Student): void {
     const students = this.getStudents();
     const index = students.findIndex(s => s.id === student.id);

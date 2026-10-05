@@ -3,6 +3,7 @@ import { StorageService } from '../../services/storage';
 import { useAuth } from '../../context/AuthContext';
 import { AttendanceRecord, StudentClass, AttendanceStatus, Student } from '../../types';
 import { formatIndonesianDate } from '../../utils/dateUtils';
+import { UsageGuide } from '../common/UsageGuide';
 import {
   UserCheck,
   Search,
@@ -132,7 +133,16 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ isHistoryMode 
     }
   };
 
-  const mergedRecords = getMergedRecords();
+  const mergedRecords = getMergedRecords().sort((a, b) => {
+    // 1. Sort by Class
+    const classCompare = a.className.localeCompare(b.className, undefined, { numeric: true });
+    if (classCompare !== 0) return classCompare;
+    // 2. Sort by Name
+    const nameCompare = a.studentName.localeCompare(b.studentName);
+    if (nameCompare !== 0) return nameCompare;
+    // 3. Sort by NIS
+    return a.nis.localeCompare(b.nis);
+  });
 
   const filteredRecords = mergedRecords.filter((r) => {
     const matchesStatus = selectedStatus === 'ALL' || r.status === selectedStatus;
@@ -243,13 +253,24 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ isHistoryMode 
             {isHistoryMode ? <Clock className="w-6 h-6" /> : <UserCheck className="w-6 h-6" />}
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900">
-              {isHistoryMode ? 'Riwayat & Log Kehadiran Siswa SMAN 1 Lumbung' : 'Absensi Kehadiran Siswa SMAN 1 Lumbung'}
-            </h2>
-            <p className="text-xs text-slate-500">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-slate-900">
+                {isHistoryMode ? 'Riwayat & Log Kehadiran' : 'Absensi Kehadiran'}
+              </h2>
+              <UsageGuide
+                title="Panduan Absensi"
+                steps={[
+                  "Pilih periode atau tanggal absensi.",
+                  "Filter berdasarkan kelas atau status kehadiran.",
+                  "Gunakan baris absensi untuk mengubah status siswa secara manual.",
+                  "Tombol gembok (admin) digunakan untuk mengunci baris agar tidak bisa diubah."
+                ]}
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
               {isHistoryMode
-                ? 'Pencarian log, peninjauan kehadiran jangka panjang, serta rekap catatan scan masuk kartu RFID & QR Code siswa SMAN 1 Lumbung.'
-                : 'Pengecekan daftar, pencarian, serta pengelolaan status kehadiran siswa termasuk siswa yang Belum Absen'}
+                ? 'Peninjauan log presensi jangka panjang.'
+                : 'Pengelolaan status kehadiran siswa.'}
             </p>
           </div>
         </div>
@@ -542,7 +563,7 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ isHistoryMode 
                 <th className="py-3 px-4">Nama Siswa</th>
                 <th className="py-3 px-4">Kelas</th>
                 <th className="py-3 px-4">Tanggal</th>
-                <th className="py-3 px-4">Jam Presensi</th>
+                <th className="py-3 px-4">Jam & Metode</th>
                 <th className="py-3 px-4">Status</th>
                 <th className="py-3 px-4">Durasi Keterlambatan</th>
                 <th className="py-3 px-4">Catatan / Alasan</th>
@@ -572,7 +593,12 @@ export const AttendanceCheck: React.FC<AttendanceCheckProps> = ({ isHistoryMode 
                       <td className="py-3.5 px-4 font-bold text-slate-900">{r.studentName}</td>
                       <td className="py-3.5 px-4 text-slate-700 font-semibold">{r.className}</td>
                       <td className="py-3.5 px-4 font-mono text-slate-600">{r.date}</td>
-                      <td className="py-3.5 px-4 font-mono text-indigo-700 font-bold">{r.time}</td>
+                      <td className="py-3.5 px-4 font-mono text-indigo-700 font-bold">
+                        <div>{r.time}</div>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${r.method === 'RFID' ? 'bg-sky-100 text-sky-700' : r.method === 'QR' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-600'}`}>
+                          {r.method}
+                        </span>
+                      </td>
                       <td className="py-3.5 px-4">
                         {r.status === 'HADIR' && (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 whitespace-nowrap inline-flex items-center gap-1 shadow-2xs">

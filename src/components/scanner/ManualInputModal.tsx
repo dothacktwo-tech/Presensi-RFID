@@ -3,6 +3,7 @@ import { StorageService } from '../../services/storage';
 import { useAuth } from '../../context/AuthContext';
 import { Student, StudentClass, AttendanceRecord, AttendanceStatus } from '../../types';
 import { formatIndonesianDate } from '../../utils/dateUtils';
+import { UsageGuide } from '../common/UsageGuide';
 import {
   UserCheck,
   Search,
@@ -365,17 +366,29 @@ export const ManualInputModal: React.FC<ManualInputProps> = ({ onSuccess }) => {
     return matchesClass && matchesSearch && matchesStatus;
   });
 
+  const sortedFilteredStudents = [...filteredStudents].sort((a, b) => {
+    // 1. Sort by Class
+    const classCompare = a.className.localeCompare(b.className, undefined, { numeric: true });
+    if (classCompare !== 0) return classCompare;
+    // 2. Sort by Name
+    const nameCompare = a.name.localeCompare(b.name);
+    if (nameCompare !== 0) return nameCompare;
+    // 3. Sort by NIS
+    return a.nis.localeCompare(b.nis);
+  });
+
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedClassId, selectedStatusFilter, searchQuery, itemsPerPage]);
 
-  const totalFiltered = filteredStudents.length;
+  const totalFiltered = sortedFilteredStudents.length;
   const totalPages = Math.max(1, Math.ceil(totalFiltered / itemsPerPage));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const paginatedStudents = itemsPerPage === 999
-    ? filteredStudents
-    : filteredStudents.slice((safeCurrentPage - 1) * itemsPerPage, safeCurrentPage * itemsPerPage);
+    ? sortedFilteredStudents
+    : sortedFilteredStudents.slice((safeCurrentPage - 1) * itemsPerPage, safeCurrentPage * itemsPerPage);
+
 
   const startRecordIdx = totalFiltered === 0 ? 0 : (safeCurrentPage - 1) * itemsPerPage + 1;
   const endRecordIdx = itemsPerPage === 999 ? totalFiltered : Math.min(safeCurrentPage * itemsPerPage, totalFiltered);
@@ -578,8 +591,20 @@ export const ManualInputModal: React.FC<ManualInputProps> = ({ onSuccess }) => {
             <UserCheck className="w-6 h-6" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Absensi Manual Siswa SMAN 1 Lumbung</h2>
-            <p className="text-xs text-slate-500">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-slate-900">Absensi Manual</h2>
+              <UsageGuide
+                title="Panduan Absensi Manual"
+                steps={[
+                  "Pilih tanggal presensi.",
+                  "Pilih kelas untuk memfilter daftar siswa.",
+                  "Centang siswa yang akan diubah statusnya, atau klik 'Isi Presensi' pada baris siswa.",
+                  "Gunakan panel status di bagian bawah untuk mengubah status siswa secara massal.",
+                  "Pastikan untuk mengeklik tombol 'Simpan Data & Kunci' setelah selesai."
+                ]}
+              />
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
               Klik tombol <strong>Isi Presensi</strong> pada baris siswa untuk membuka <strong>Popup Modal Input Absensi</strong>
             </p>
           </div>

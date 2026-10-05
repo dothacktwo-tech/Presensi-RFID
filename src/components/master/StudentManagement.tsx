@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { QrManagementModal } from './QrManagementModal';
 import { StorageService } from '../../services/storage';
 import { downloadStudentTemplate, parseStudentExcelFile } from '../../services/exportExcel';
 import { Student, StudentClass } from '../../types';
@@ -83,6 +84,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({
   const [isFormOpen, setIsFormOpen] = useState(defaultOpenForm);
   const [isBulkOpen, setIsBulkOpen] = useState(defaultOpenBulk);
   const [isCardModalOpen, setIsCardModalOpen] = useState(defaultOpenPrint);
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [activeStudent, setActiveStudent] = useState<Student | null>(null);
 
   const [formData, setFormData] = useState<Partial<Student>>({
@@ -142,10 +144,9 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({
     setIsFormOpen(true);
   };
 
-  const handleOpenEdit = (s: Student) => {
+  const handleOpenQr = (s: Student) => {
     setActiveStudent(s);
-    setFormData({ ...s });
-    setIsFormOpen(true);
+    setIsQrModalOpen(true);
   };
 
   const handleDeleteSingle = (id: string, name: string) => {
@@ -355,11 +356,14 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({
   });
 
   const sortedStudents = [...filteredStudents].sort((a, b) => {
-    if (sortBy === 'name-asc') return a.name.localeCompare(b.name);
-    if (sortBy === 'name-desc') return b.name.localeCompare(a.name);
-    if (sortBy === 'nis-asc') return a.nis.localeCompare(b.nis);
-    if (sortBy === 'class-asc') return a.className.localeCompare(b.className);
-    return 0;
+    // 1. Sort by Class
+    const classCompare = a.className.localeCompare(b.className, undefined, { numeric: true });
+    if (classCompare !== 0) return classCompare;
+    // 2. Sort by Name
+    const nameCompare = a.name.localeCompare(b.name);
+    if (nameCompare !== 0) return nameCompare;
+    // 3. Sort by NIS
+    return a.nis.localeCompare(b.nis);
   });
 
   // Pagination Calculations
@@ -1135,6 +1139,13 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button
+                            onClick={() => handleOpenQr(s)}
+                            className="p-1.5 hover:bg-emerald-50 text-emerald-600 rounded-lg transition-colors"
+                            title="Kelola QR Code"
+                          >
+                            <QrCode className="w-4 h-4" />
+                          </button>
+                          <button
                             onClick={() => handleOpenEdit(s)}
                             className="p-1.5 hover:bg-slate-100 text-slate-600 hover:text-slate-900 rounded-lg transition-colors"
                           >
@@ -1735,6 +1746,15 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({
             </button>
           </div>
         </div>
+      )}
+
+      {/* MODAL: QR MANAGEMENT */}
+      {isQrModalOpen && activeStudent && (
+        <QrManagementModal
+          student={activeStudent}
+          onClose={() => setIsQrModalOpen(false)}
+          onNotify={onNotify}
+        />
       )}
     </div>
   );

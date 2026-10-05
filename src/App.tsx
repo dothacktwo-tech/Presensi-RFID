@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { useSyncData } from './hooks/useSyncData';
+import { MobileBottomNav } from './components/common/MobileBottomNav';
 import { Navbar } from './components/common/Navbar';
 import { Sidebar } from './components/common/Sidebar';
 import { ToastContainer, ToastMessage } from './components/common/Toast';
@@ -93,25 +94,37 @@ function AppContent() {
         />
       ) : (
         <div className="flex flex-col min-h-screen">
-          {/* Top Bar Header */}
-          <Navbar
-            onOpenKiosk={() => setIsKioskFullscreen(true)}
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            onToggleMobileSidebar={() => setIsMobileSidebarOpen(prev => !prev)}
-          />
-
-          <div className="flex flex-1 relative">
-            {/* Sidebar Navigation */}
-            <Sidebar
+          {/* Top Bar Header (Desktop only) */}
+          <div className="hidden lg:block">
+            <Navbar
+              onOpenKiosk={() => setIsKioskFullscreen(true)}
               activeTab={activeTab}
               setActiveTab={setActiveTab}
-              onOpenKiosk={() => setIsKioskFullscreen(true)}
-              sidebarMode={sidebarMode}
-              setSidebarMode={setSidebarMode}
-              isMobileOpen={isMobileSidebarOpen}
-              setIsMobileOpen={setIsMobileSidebarOpen}
             />
+          </div>
+          
+          {/* Mobile Header (Compact) */}
+          <div className="lg:hidden sticky top-0 z-30 bg-white/95 border-b border-slate-200 backdrop-blur-md px-4 py-3 flex items-center justify-between shadow-xs">
+              <h1 className="text-base font-black tracking-tight text-slate-900">
+                HADIRKU SMAN 1
+              </h1>
+              <div className="w-8 h-8 rounded-full bg-slate-200" /> {/* Placeholder for Avatar */}
+          </div>
+
+          <div className="flex flex-1 relative">
+            {/* Sidebar Navigation (Desktop only) */}
+            <div className="hidden lg:block">
+              <Sidebar
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                onOpenKiosk={() => setIsKioskFullscreen(true)}
+                sidebarMode={sidebarMode}
+                setSidebarMode={setSidebarMode}
+                isMobileOpen={isMobileSidebarOpen}
+                setIsMobileOpen={setIsMobileSidebarOpen}
+              />
+            </div>
+
 
             {/* Main Application Canvas */}
             <main className="flex-1 p-4 lg:p-8 max-w-7xl mx-auto w-full">

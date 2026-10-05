@@ -93,7 +93,18 @@ export const generateAttendancePdf = (options: PdfExportOptions) => {
   doc.text(`Ringkasan: HADIR (${hadir}) | TERLAMBAT (${terlambat}) | SAKIT (${sakit}) | IZIN (${izin}) | ALPA (${alpa}) | Total Keterlambatan: ${totalLateMinutes} mnt`, 17, 78 + offsetY);
 
   // --- ATTENDANCE TABLE ---
-  const tableData = records.map((rec, index) => [
+  const sortedRecords = [...records].sort((a, b) => {
+    // Sort by Class
+    const classCompare = a.className.localeCompare(b.className, undefined, { numeric: true });
+    if (classCompare !== 0) return classCompare;
+    // Sort by Name
+    const nameCompare = a.studentName.localeCompare(b.studentName);
+    if (nameCompare !== 0) return nameCompare;
+    // Sort by NIS
+    return a.nis.localeCompare(b.nis);
+  });
+
+  const tableData = sortedRecords.map((rec, index) => [
     index + 1,
     rec.nis,
     rec.studentName,
